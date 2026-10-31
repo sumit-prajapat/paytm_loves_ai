@@ -6,19 +6,19 @@
   --navy-900: #071a4a;
   --navy-700: #0a2463;
   --sky-500: #00b4e6;
-  --sky-100: #e3f6fd;
-  --bg: #f4f7fb;
+  --sky-100: #e0f2fe;
+  --bg: #f8fafc;
   --card: #ffffff;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --ok: #16a34a;
+  --ink: #050d1f;
+  --muted: #334155;
+  --line: #cbd5e1;
+  --ok: #15803d;
   --ok-bg: #dcfce7;
-  --warn: #d97706;
+  --warn: #b45309;
   --warn-bg: #fef3c7;
-  --risk: #dc2626;
+  --risk: #b91c1c;
   --risk-bg: #fee2e2;
-  --money: #0a2463;
+  --money: #071a4a;
   color-scheme: light;
 }
 
@@ -58,16 +58,28 @@ body {
   @apply bg-bg font-sans text-ink antialiased;
   font-size: 14px;
   line-height: 1.45;
+  color: var(--ink);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+b, strong {
+  font-weight: 800;
 }
 
 .num {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--money);
 }
 .phone-text {
-  font-size: 17px;
+  font-size: 15.5px;
   line-height: 1.5;
+  font-weight: 600;
 }
 .elder .phone-text {
   font-size: 22px;

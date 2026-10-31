@@ -87,35 +87,35 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-bg text-ink transition-colors duration-200">
-      {/* 1. PRODUCTION STICKY NAVBAR */}
-      <header className="sticky top-0 z-40 border-b border-line/60 bg-navy-900/95 backdrop-blur-md px-4 py-3 text-white shadow-md">
+      {/* 1. PRODUCTION STICKY NAVBAR - LIGHT THEME WITH DARK BOLD TEXT */}
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 py-3 text-slate-900 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center gap-2.5 transition hover:opacity-95 shrink-0" aria-label="Saarthi Home">
             <BrandLogo size={36} />
             <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
+              <span className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-1.5">
                 Saarthi
-                <span className="rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-extrabold text-sky-300 border border-sky-400/30">
+                <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-black text-sky-800 border border-sky-300">
                   AI Teammate
                 </span>
               </span>
-              <span className="hidden sm:inline text-[10px] text-slate-300 font-medium tracking-wide">Next-Gen Intelligent Fintech</span>
+              <span className="hidden sm:inline text-[11px] text-slate-600 font-bold tracking-wide">Next-Gen Intelligent Fintech</span>
             </div>
           </Link>
 
-          {/* Center Navigation Links for Production */}
-          <nav className="hidden lg:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10 text-xs font-bold text-slate-200">
-            <Link to="/merchant" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+          {/* Center Navigation Links: Dark & Bold */}
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-100 rounded-full p-1 border border-slate-300 text-xs font-black text-slate-900 shadow-inner">
+            <Link to="/merchant" className="rounded-full px-3.5 py-1.5 text-slate-900 font-black hover:bg-white hover:text-sky-600 transition shadow-none hover:shadow-sm">
               🏪 Merchant Care
             </Link>
-            <Link to="/travel" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+            <Link to="/travel" className="rounded-full px-3.5 py-1.5 text-slate-900 font-black hover:bg-white hover:text-sky-600 transition shadow-none hover:shadow-sm">
               ✈️ Travel Concierge
             </Link>
-            <Link to="/soundbox" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+            <Link to="/soundbox" className="rounded-full px-3.5 py-1.5 text-slate-900 font-black hover:bg-white hover:text-sky-600 transition shadow-none hover:shadow-sm">
               🔊 Soundbox
             </Link>
-            <Link to="/stage" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+            <Link to="/stage" className="rounded-full px-3.5 py-1.5 text-slate-900 font-black hover:bg-white hover:text-sky-600 transition shadow-none hover:shadow-sm">
               🔬 Ops Engine
             </Link>
           </nav>
@@ -123,12 +123,12 @@ export default function Home() {
           {/* Right Actions: Status, Language, Theme, CTA */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             <ConnectionPill />
-            <LanguageChip dark />
-            <ThemeToggle dark />
+            <LanguageChip />
+            <ThemeToggle />
 
             <Link
               to="/stage"
-              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-4 py-1.5 text-xs sm:text-sm font-extrabold text-navy-950 shadow-md hover:bg-sky-400 hover:scale-105 active:scale-95 transition"
+              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-4 py-1.5 text-xs sm:text-sm font-black text-slate-950 shadow-md hover:bg-sky-400 hover:scale-105 active:scale-95 transition"
             >
               <Sparkles className="h-4 w-4" />
               <span>Try Saarthi</span>

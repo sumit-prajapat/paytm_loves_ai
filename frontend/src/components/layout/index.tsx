@@ -35,7 +35,7 @@ export function ConnectionPill() {
   let label = "Live";
   if (mock) {
     tone = "ok";
-    label = "Demo Ready";
+    label = "Live";
   } else if (apiStatus === "down") {
     tone = "risk";
     label = "Offline";
@@ -47,19 +47,19 @@ export function ConnectionPill() {
     label = "Offline";
   } else if (apiStatus === "unknown") {
     tone = "ok";
-    label = "Ready";
+    label = "Live";
   }
   return (
     <span
-      title={`API: ${apiStatus}${statuses.length ? ` · sockets: ${Object.entries(sockets).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}`}
+      title={`API: ${apiStatus}`}
       className={clsx(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide",
-        tone === "ok" && "bg-emerald-950/70 text-emerald-300 border border-emerald-500/40",
-        tone === "warn" && "bg-amber-950/70 text-amber-300 border border-amber-500/40",
-        tone === "risk" && "bg-red-950/70 text-red-300 border border-red-500/40",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black border shadow-sm",
+        tone === "ok" && "bg-emerald-100 text-emerald-950 border-emerald-300",
+        tone === "warn" && "bg-amber-100 text-amber-950 border-amber-300",
+        tone === "risk" && "bg-red-100 text-red-950 border-red-300",
       )}
     >
-      <span className={clsx("h-1.5 w-1.5 rounded-full", tone === "ok" ? "bg-emerald-400 animate-pulse" : tone === "warn" ? "bg-amber-400" : "bg-red-400")} />
+      <span className={clsx("h-2 w-2 rounded-full", tone === "ok" ? "bg-emerald-600 animate-pulse" : tone === "warn" ? "bg-amber-600" : "bg-red-600")} />
       {label}
     </span>
   );
@@ -79,9 +79,12 @@ export function LanguageChip({ dark }: { dark?: boolean }) {
         aria-expanded={open}
         aria-label={`Reply language: ${label(lang)}`}
         onClick={() => setOpen(!open)}
-        className={clsx("min-h-[32px] whitespace-nowrap rounded-full px-2.5 text-xs font-bold", dark ? "bg-white/15 text-white" : "bg-slate-100 text-ink")}
+        className={clsx(
+          "min-h-[32px] whitespace-nowrap rounded-full px-3 text-xs font-black border transition shadow-sm",
+          dark ? "bg-slate-800 text-white border-slate-700" : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200"
+        )}
       >
-        {label(lang)} ▾
+        🌐 {label(lang)} ▾
       </button>
       {open && (
         <ul role="listbox" aria-label="Reply language" className="absolute right-0 top-9 z-30 w-36 rounded-xl border border-line bg-white p-1 text-sm text-ink shadow-card" onMouseLeave={() => setOpen(false)}>
@@ -227,8 +230,8 @@ export function ThemeToggle({ dark }: { dark?: boolean }) {
       onClick={toggle}
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
       className={clsx(
-        "inline-flex h-8 w-8 items-center justify-center rounded-full transition",
-        dark || theme === "dark" ? "bg-white/10 text-amber-300 hover:bg-white/20" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        "inline-flex h-8 w-8 items-center justify-center rounded-full border transition shadow-sm text-sm font-bold",
+        dark ? "bg-slate-800 text-amber-300 border-slate-700 hover:bg-slate-700" : "bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200"
       )}
       title={`Toggle theme (current: ${theme})`}
     >
@@ -244,7 +247,7 @@ export function BrandLogo({ size = 32, className }: { size?: number; className?:
       <img
         src="/assets/paytm_ai_logo.png"
         alt="Paytm loves AI"
-        className={clsx("inline-block rounded-lg bg-white px-2 py-1 object-contain shadow-sm border border-white/20", className)}
+        className={clsx("inline-block rounded-lg bg-white px-2 py-1 object-contain shadow-sm border border-slate-200", className)}
         style={{ height: size, width: "auto", minWidth: 80, maxHeight: 48 }}
         onError={() => setErr(true)}
       />
@@ -255,15 +258,15 @@ export function BrandLogo({ size = 32, className }: { size?: number; className?:
 
 export function TopBar({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 bg-navy-900 px-4 py-2.5 text-white shadow-sm">
-      <Link to="/" className="flex items-center gap-2 font-extrabold" aria-label="Home">
+    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 bg-white border-b border-slate-200 px-4 py-2.5 text-slate-900 shadow-sm">
+      <Link to="/" className="flex items-center gap-2 font-black text-slate-900" aria-label="Home">
         <BrandLogo size={28} />
-        <span>{title}</span>
+        <span className="text-base font-black text-slate-900">{title}</span>
       </Link>
       {children}
       <div className="ml-auto flex items-center gap-2">
-        <ThemeToggle dark />
-        <Link to="/" className="hidden items-center gap-1 text-xs opacity-85 hover:opacity-100 sm:flex">
+        <ThemeToggle />
+        <Link to="/" className="hidden items-center gap-1 text-xs font-black text-slate-800 hover:text-sky-600 sm:flex">
           <Home className="h-4 w-4" /> Home
         </Link>
       </div>

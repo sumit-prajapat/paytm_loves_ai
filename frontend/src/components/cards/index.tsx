@@ -47,9 +47,9 @@ export function RichCard({ icon, title, children, tone, footer, caseId }: {
 
 function KV({ k, v, big }: { k: ReactNode; v: ReactNode; big?: boolean }) {
   return (
-    <div className={clsx("flex items-center justify-between gap-3 py-0.5", big && "mt-1 border-t border-line pt-1.5 text-[15px]")}>
-      <span className="text-slate-600">{k}</span>
-      <span className="text-right">{v}</span>
+    <div className={clsx("flex items-center justify-between gap-3 py-1", big && "mt-1.5 border-t border-line pt-2 text-[15px]")}>
+      <span className="font-bold text-slate-800 dark:text-slate-200">{k}</span>
+      <span className="text-right font-black text-navy-950 dark:text-slate-100">{v}</span>
     </div>
   );
 }

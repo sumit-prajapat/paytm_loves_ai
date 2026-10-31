@@ -88,7 +88,7 @@ export function Bubble({ m, children }: { m: UiMessage; children?: ReactNode }) 
                   {!lowData && m.audio && <Bars seed={m.text.length} />}
                 </div>
               )}
-              <div className="whitespace-pre-line text-[14.5px] font-medium leading-relaxed">{m.text}</div>
+              <div className="whitespace-pre-line text-[15px] font-semibold text-ink leading-relaxed tracking-normal">{m.text}</div>
             </>
           )}
         </div>

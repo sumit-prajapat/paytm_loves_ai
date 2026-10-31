@@ -159,7 +159,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   slowSpeech: loadPref("slowSpeech", false),
   audioUnlocked: false,
   stagePhone: "ramesh",
-  theme: loadPref<"light" | "dark">("theme", window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
+  theme: "light",
   apiStatus: "unknown",
   sockets: {},
   threads: {},

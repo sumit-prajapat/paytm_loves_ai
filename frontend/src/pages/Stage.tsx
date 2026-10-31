@@ -50,22 +50,22 @@ export default function Stage() {
 
   return (
     <div className={clsx("min-h-full bg-bg text-ink", killed && "desaturate")}>
-      <header className="sticky top-0 z-40 border-b border-line/60 bg-navy-900/95 backdrop-blur-md px-4 py-2.5 text-white shadow-md">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 py-2.5 text-slate-900 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 transition hover:opacity-95 shrink-0" aria-label="Saarthi Home">
             <BrandLogo size={32} />
             <div className="flex flex-col">
-              <span className="text-base font-black tracking-tight text-white flex items-center gap-1.5">
+              <span className="text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
                 Saarthi
-                <span className="rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-extrabold text-sky-300 border border-sky-400/30">
+                <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-black text-sky-800 border border-sky-300">
                   AI Teammate
                 </span>
               </span>
             </div>
           </Link>
 
-          {/* Central Persona Switcher */}
-          <div role="radiogroup" aria-label="Phone Persona" className="flex rounded-full bg-white/10 p-0.5 text-xs font-bold border border-white/10">
+          {/* Central Persona Switcher - Dark & Bold */}
+          <div role="radiogroup" aria-label="Phone Persona" className="flex rounded-full bg-slate-100 p-0.5 text-xs font-black border border-slate-300 shadow-inner">
             {(["ramesh", "arjun"] as const).map((p) => (
               <button
                 key={p}
@@ -73,8 +73,8 @@ export default function Stage() {
                 aria-checked={phone === p}
                 onClick={() => set({ stagePhone: p })}
                 className={clsx(
-                  "min-h-[32px] rounded-full px-3.5 transition flex items-center gap-1.5",
-                  phone === p ? "bg-white text-navy-900 shadow-sm font-black" : "text-white/80 hover:text-white"
+                  "min-h-[32px] rounded-full px-3.5 transition flex items-center gap-1.5 font-black",
+                  phone === p ? "bg-white text-slate-900 shadow-sm font-black" : "text-slate-700 hover:text-slate-900"
                 )}
               >
                 {p === "ramesh" ? "🏪 Ramesh (Care)" : "✈️ Arjun (Travel)"}
@@ -84,9 +84,9 @@ export default function Stage() {
 
           <div className="flex items-center gap-2 sm:gap-2.5">
             <ConnectionPill />
-            <LanguageChip dark />
-            <ThemeToggle dark />
-            <Link to="/" className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition">
+            <LanguageChip />
+            <ThemeToggle />
+            <Link to="/" className="hidden sm:inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-900 hover:bg-slate-200 transition shadow-sm">
               <Home className="h-3.5 w-3.5" /> Home
             </Link>
           </div>
