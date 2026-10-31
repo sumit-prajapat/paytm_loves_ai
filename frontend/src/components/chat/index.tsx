@@ -62,10 +62,10 @@ export function Bubble({ m, children }: { m: UiMessage; children?: ReactNode }) 
   }
   const tag = m.tag ? TAGS[m.tag] : "";
   return (
-    <div className={clsx("flex max-w-[86%] flex-col gap-2", mine ? "self-end items-end" : "self-start items-start w-full")}>
+    <div className={clsx("flex max-w-[88%] flex-col gap-2", mine ? "self-end items-end" : "self-start items-start w-full")}>
       {(m.text || m.voice) && (
-        <div className={clsx("phone-text animate-rise rounded-2xl px-3 py-2", mine ? "rounded-br-sm bg-navy-700 text-white" : "rounded-bl-sm bg-sky-100 text-ink")}>
-          {tag && <div className={clsx("mb-0.5 text-[10.5px] font-bold", mine ? "text-sky-200" : "text-sky-700")}>{tag}</div>}
+        <div className={clsx("phone-text animate-rise rounded-2xl px-3.5 py-2.5 shadow-sm", mine ? "rounded-br-sm bg-navy-700 text-white" : "rounded-bl-sm bg-sky-100 text-navy-950 border border-sky-200")}>
+          {tag && <div className={clsx("mb-1 text-[11px] font-bold", mine ? "text-sky-200" : "text-sky-800")}>{tag}</div>}
           {m.voice ? (
             <>
               <div className="flex items-center gap-2">
@@ -73,20 +73,23 @@ export function Bubble({ m, children }: { m: UiMessage; children?: ReactNode }) 
                 {!lowData ? <Bars seed={m.text.length} /> : <span className="text-xs">▶</span>}
                 <small className="tabular-nums">0:{String(Math.max(1, Math.round(m.voice.seconds))).padStart(2, "0")}</small>
               </div>
-              <div className="mt-1 text-[12.5px] italic opacity-90">
+              <div className="mt-1 text-[13px] italic opacity-90">
                 {m.voice.pending ? t("stt.listening", null) : m.voice.failed ? t("stt.fail", null) : `“${m.text}”`}
               </div>
             </>
-          ) : m.audio ? (
-            <>
-              <div className="flex items-center gap-2">
-                <AudioButton url={m.audio.audio_url} bytes={m.audio.bytes} text={m.text} lang={m.lang ?? "hi"} slow={m.audio.slow} />
-                {!lowData ? <Bars seed={m.text.length} /> : <span className="text-xs">▶ audio</span>}
-              </div>
-              <div className="mt-1 whitespace-pre-line text-[13.5px]">{m.text}</div>
-            </>
           ) : (
-            <div className="whitespace-pre-line">{m.text}</div>
+            <>
+              {!mine && (
+                <div className="mb-1.5 flex items-center justify-between gap-2 border-b border-sky-200 pb-1.5">
+                  <div className="flex items-center gap-2">
+                    <AudioButton url={m.audio?.audio_url} bytes={m.audio?.bytes} text={m.text} lang={m.lang ?? "hi"} slow={m.audio?.slow} />
+                    <span className="text-[12px] font-extrabold text-sky-900">🔊 सुनिए (Tap to Listen)</span>
+                  </div>
+                  {!lowData && m.audio && <Bars seed={m.text.length} />}
+                </div>
+              )}
+              <div className="whitespace-pre-line text-[14.5px] font-medium leading-relaxed">{m.text}</div>
+            </>
           )}
         </div>
       )}

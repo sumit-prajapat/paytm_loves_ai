@@ -7,7 +7,7 @@ import { BrandLogo, LanguageChip, PhoneFrame } from "@/components/layout";
 import { Card } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { MERCHANT_PERSONAS, PERSONAS } from "@/lib/personas";
-import { raiseIssue, requestPulse, runCheckup, sendText, sendVoice } from "@/services/actions";
+import { raiseIssue, runCheckup, sendText, sendVoice } from "@/services/actions";
 import { savePref, useStore } from "@/store";
 import type { PersonaId, Scope } from "@/types/contracts";
 
@@ -21,24 +21,60 @@ function Welcome({ persona }: { persona: PersonaId }) {
   const lang = useStore((s) => s.lang) ?? PERSONAS[persona].defaultLang;
   const first = PERSONAS[persona].label.split(" ")[0];
   return (
-    <div className="m-auto flex max-w-[320px] flex-col items-center gap-2 py-6 text-center">
+    <div className="m-auto flex w-full max-w-[340px] flex-col items-center gap-3 py-4 text-center">
       <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md border border-line">
-        <BrandLogo size={52} className="min-w-[110px]" />
+        <BrandLogo size={52} className="min-w-[120px]" />
       </div>
-      <div className="text-lg font-bold">{t("welcome", lang)} {first} ji 🙏</div>
-      <p className="text-sm text-muted">{t("welcome.sub", lang)}</p>
-      <div className="mt-2 grid w-full grid-cols-3 gap-2">
-        {SHORTCUTS.map((s) => (
-          <button key={s.scope} onClick={() => runCheckup(persona, s.scope)} className="flex min-h-[88px] flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-card text-ink p-2 shadow-sm hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition">
-            <span className="text-2xl" aria-hidden>{s.emoji}</span>
-            <small className="text-[11.5px] font-semibold leading-tight text-ink">{t(s.key, lang)}</small>
-          </button>
-        ))}
+      <div>
+        <div className="text-xl font-black text-ink">{t("welcome", lang)} {first} ji 🙏</div>
+        <p className="text-xs text-muted mt-0.5">Bol kar poochiye ya neeche ek bada button dabaiye</p>
       </div>
-      <div className="mt-1 grid w-full grid-cols-3 gap-2 text-[11.5px]">
-        <button onClick={() => runCheckup(persona, "all")} className="min-h-[48px] rounded-xl border border-line bg-card text-ink font-semibold px-1 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition">✅ {t("check.all", lang)}</button>
-        <button onClick={() => requestPulse(persona, "pulse")} className="min-h-[48px] rounded-xl border border-line bg-card text-ink font-semibold px-1 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition">📊 {t("pulse", lang)}</button>
-        <button onClick={() => requestPulse(persona, "advice")} className="min-h-[48px] rounded-xl border border-line bg-card text-ink font-semibold px-1 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition">🪔 {t("advice", lang)}</button>
+
+      {/* Primary Visual Big Touch Targets for Illiterate Users */}
+      <div className="grid w-full grid-cols-2 gap-2.5 mt-1">
+        <button
+          type="button"
+          onClick={() => runCheckup(persona, "settlement")}
+          className="flex min-h-[96px] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 p-3 shadow-md hover:scale-[1.02] active:scale-95 transition"
+        >
+          <span className="text-3xl" aria-hidden>💰</span>
+          <b className="text-sm font-black text-emerald-950 dark:text-emerald-100">आज का पैसा</b>
+          <span className="text-[11px] text-emerald-800 dark:text-emerald-300 font-semibold">Settlement Check</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => runCheckup(persona, "device")}
+          className="flex min-h-[96px] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/60 p-3 shadow-md hover:scale-[1.02] active:scale-95 transition"
+        >
+          <span className="text-3xl" aria-hidden>🔊</span>
+          <b className="text-sm font-black text-sky-950 dark:text-sky-100">साउंडबॉक्स जाँच</b>
+          <span className="text-[11px] text-sky-800 dark:text-sky-300 font-semibold">Soundbox State</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => runCheckup(persona, "refunds")}
+          className="flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-card text-ink p-2 shadow-sm hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition"
+        >
+          <span className="text-2xl" aria-hidden>↩️</span>
+          <b className="text-xs font-bold">रिफ़ंड (Refunds)</b>
+          <span className="text-[10px] text-muted">Aaye ya kate</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => runCheckup(persona, "all")}
+          className="flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-card text-ink p-2 shadow-sm hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950 transition"
+        >
+          <span className="text-2xl" aria-hidden>✅</span>
+          <b className="text-xs font-bold">सब कुछ जाँचें</b>
+          <span className="text-[10px] text-muted">Check Everything</span>
+        </button>
+      </div>
+
+      <div className="w-full rounded-xl bg-amber-100/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-3 py-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+        🎙️ Neeche bada Mic dabayein aur Hindi me bolein
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 import clsx from "clsx";
 import {
   AlertTriangle, BatteryLow, CheckCircle2, CircleDollarSign, Clock, Plug, Search, ShieldAlert, ShieldCheck, Signal, Ticket,
-  UserRoundCheck, Wifi,
+  UserRoundCheck, Volume2, Wifi,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Badge, Button } from "@/components/ui";
+import { playReply, unlockAudio } from "@/lib/audio";
 import { formatDate, formatINR, maskId } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { applyForLoan, raiseIssue, runCheckup, sendText } from "@/services/actions";
@@ -57,6 +58,12 @@ export function SettlementCard({ f, persona, caseId }: { f: Finding; persona: Pe
   const x = f.facts;
   if (f.code === "settlement_none") return <RichCard icon="💰" title="Settlement">No settlement record yet.</RichCard>;
   const items: { type: string; amount: number; amount_money?: any }[] = x.items ?? [];
+  const actualStr = formatINR(x.actual_money ?? x.actual);
+  const gapNum = Number(x.gap ?? 0);
+  const speechText = gapNum > 0 
+    ? `Aapke khaate mein ${actualStr} aaye hain. ${formatINR(x.gap_money ?? x.gap)} kam aaya kyunki refund kata hai. Poori jaanch ho chuki hai.`
+    : `Aapke khaate mein poora hisaab ${actualStr} aa gaya hai. Sab theek hai.`;
+
   return (
     <RichCard
       icon="💰"
@@ -70,8 +77,29 @@ export function SettlementCard({ f, persona, caseId }: { f: Finding; persona: Pe
         </>
       }
     >
-      <KV k="Expected" v={<span className="num">{formatINR(x.expected_money ?? x.expected)}</span>} />
-      <KV k="Mila (received)" v={<span className="num">{formatINR(x.actual_money ?? x.actual)}</span>} />
+      {/* High-Impact Visual Summary for Illiterate Merchants */}
+      <div className={clsx(
+        "mb-3 rounded-xl p-3 text-center border-2",
+        gapNum > 0 ? "bg-amber-50 dark:bg-amber-950/60 border-amber-400 text-amber-950 dark:text-amber-100" : "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 text-emerald-950 dark:text-emerald-100"
+      )}>
+        <div className="text-2xl font-black">{actualStr}</div>
+        <div className="text-xs font-bold mt-0.5">
+          {gapNum > 0 ? `⚠️ ₹${gapNum} कम आया (Refund कटा)` : "✅ खाते में जमा हो गया (Settled)"}
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            await unlockAudio();
+            playReply({ text: speechText, lang: "hi" });
+          }}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-slate-800 border border-current px-3 py-1 text-xs font-bold shadow-sm hover:scale-105 active:scale-95 transition"
+        >
+          <Volume2 className="h-3.5 w-3.5" /> बोलकर सुनो (Listen)
+        </button>
+      </div>
+
+      <KV k="Expected (Aana tha)" v={<span className="num font-bold">{formatINR(x.expected_money ?? x.expected)}</span>} />
+      <KV k="Mila (Bank mila)" v={<span className="num font-bold text-emerald-700 dark:text-emerald-400">{actualStr}</span>} />
       {items.length > 0 && (
         <div className="my-2 flex h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
           {items.map((i, n) => (
@@ -82,7 +110,7 @@ export function SettlementCard({ f, persona, caseId }: { f: Finding; persona: Pe
       {items.map((i, n) => (
         <KV key={n} k={<span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: ITEM_COLOR[i.type] ?? "#64748B" }} />{ITEM_LABEL[i.type] ?? i.type}</span>} v={<span className="num">{formatINR(i.amount_money ?? i.amount)}</span>} />
       ))}
-      {Number(x.gap) > 0 && <KV big k={<b>Kam aaya (short)</b>} v={<span className="num">{formatINR(x.gap_money ?? x.gap)}</span>} />}
+      {gapNum > 0 && <KV big k={<b className="text-amber-800 dark:text-amber-300">Kam aaya (short)</b>} v={<span className="num font-black text-amber-800 dark:text-amber-300">{formatINR(x.gap_money ?? x.gap)}</span>} />}
       <div className="mt-2">
         {f.code === "settlement_gap_reconciled" && <Badge tone="ok"><CheckCircle2 className="h-3 w-3" /> Aapko kuch karne ki zaroorat nahi</Badge>}
         {f.code === "settlement_gap_unreconciled" && <Badge tone="warn"><AlertTriangle className="h-3 w-3" /> Settlement team check karegi</Badge>}
@@ -97,6 +125,13 @@ export function DeviceCard({ f, persona, caseId }: { f: Finding; persona: Person
   if (f.code === "device_none") return <RichCard icon="🔊" title="Soundbox">No Soundbox linked.</RichCard>;
   const offline = f.code === "device_offline";
   const low = f.code === "device_low_battery";
+  const ok = !offline && !low;
+  const speechText = ok
+    ? "Aapka Paytm soundbox bilkul theek hai aur chalu hai. Battery full hai."
+    : low 
+    ? "Aapke soundbox ki battery kam hai. Kripya charger lagaiye."
+    : "Soundbox offline hai. Kripya power button dabakar chalu karein.";
+
   return (
     <RichCard
       icon="🔊"
@@ -110,6 +145,29 @@ export function DeviceCard({ f, persona, caseId }: { f: Finding; persona: Person
         </>
       )}
     >
+      {/* High-Impact Visual Status for Illiterate Users */}
+      <div className={clsx(
+        "mb-3 rounded-xl p-3 text-center border-2",
+        ok ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 text-emerald-950 dark:text-emerald-100" : "bg-amber-50 dark:bg-amber-950/60 border-amber-400 text-amber-950 dark:text-amber-100"
+      )}>
+        <div className="text-xl font-black">
+          {ok ? "🔊 साउंडबॉक्स चालू है" : low ? "🔋 बैटरी कम है (Charger लगाएं)" : "⚠️ साउंडबॉक्स बंद है"}
+        </div>
+        <div className="text-xs font-bold mt-0.5">
+          {ok ? "All OK · Awaaz clear hai" : low ? "Plug in charger now" : "Turn ON device"}
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            await unlockAudio();
+            playReply({ text: speechText, lang: "hi" });
+          }}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-slate-800 border border-current px-3 py-1 text-xs font-bold shadow-sm hover:scale-105 active:scale-95 transition"
+        >
+          <Volume2 className="h-3.5 w-3.5" /> बोलकर सुनो (Listen)
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-3 text-[13px]">
         <span className="flex items-center gap-1"><BatteryLow className="h-4 w-4" /> <b className="num">{x.battery}%</b></span>
         <span className="flex items-center gap-1"><Signal className="h-4 w-4" /> {x.network}</span>

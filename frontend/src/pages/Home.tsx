@@ -87,11 +87,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-bg text-ink transition-colors duration-200">
-      {/* 1. STICKY NAVBAR */}
+      {/* 1. PRODUCTION STICKY NAVBAR */}
       <header className="sticky top-0 z-40 border-b border-line/60 bg-navy-900/95 backdrop-blur-md px-4 py-3 text-white shadow-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <Link to="/" className="flex items-center gap-2.5 transition hover:opacity-95" aria-label="Saarthi Home">
-            <BrandLogo size={34} />
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          {/* Logo & Brand */}
+          <Link to="/" className="flex items-center gap-2.5 transition hover:opacity-95 shrink-0" aria-label="Saarthi Home">
+            <BrandLogo size={36} />
             <div className="flex flex-col">
               <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
                 Saarthi
@@ -99,31 +100,38 @@ export default function Home() {
                   AI Teammate
                 </span>
               </span>
-              <span className="hidden sm:inline text-[10.5px] text-slate-300 font-medium">Paytm AI Hackathon</span>
+              <span className="hidden sm:inline text-[10px] text-slate-300 font-medium tracking-wide">Next-Gen Intelligent Fintech</span>
             </div>
           </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Center Navigation Links for Production */}
+          <nav className="hidden lg:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10 text-xs font-bold text-slate-200">
+            <Link to="/merchant" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+              🏪 Merchant Care
+            </Link>
+            <Link to="/travel" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+              ✈️ Travel Concierge
+            </Link>
+            <Link to="/soundbox" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+              🔊 Soundbox
+            </Link>
+            <Link to="/stage" className="rounded-full px-3.5 py-1.5 hover:bg-white/15 hover:text-white transition">
+              🔬 Ops Engine
+            </Link>
+          </nav>
+
+          {/* Right Actions: Status, Language, Theme, CTA */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <ConnectionPill />
             <LanguageChip dark />
             <ThemeToggle dark />
-            
-            <button
-              onClick={() => setStore({ elderMode: !elderMode })}
-              title="Elder Mode: Increases typography size & touch targets"
-              className={`hidden md:inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold border transition ${
-                elderMode ? "bg-amber-400 text-navy-900 border-amber-300" : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-            >
-              👵 {t("elder", lang)} {elderMode ? "ON" : "OFF"}
-            </button>
 
             <Link
               to="/stage"
-              className="inline-flex items-center gap-1.5 rounded-btn bg-sky-500 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-navy-900 shadow hover:bg-sky-400 transition"
+              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-4 py-1.5 text-xs sm:text-sm font-extrabold text-navy-950 shadow-md hover:bg-sky-400 hover:scale-105 active:scale-95 transition"
             >
               <Sparkles className="h-4 w-4" />
-              <span>{t("landing.hero.cta.try", lang)}</span>
+              <span>Try Saarthi</span>
             </Link>
           </div>
         </div>

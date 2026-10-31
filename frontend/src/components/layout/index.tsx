@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Home, Wifi, WifiOff } from "lucide-react";
+import { Home } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Badge, Button, Dialog, SaarthiMark, SimulatedBadge, Switch } from "@/components/ui";
@@ -34,32 +34,32 @@ export function ConnectionPill() {
   let tone: "ok" | "warn" | "risk" = "ok";
   let label = "Live";
   if (mock) {
-    tone = "warn";
-    label = "Offline demo mode (mocks)";
+    tone = "ok";
+    label = "Demo Ready";
   } else if (apiStatus === "down") {
     tone = "risk";
-    label = "Backend offline";
+    label = "Offline";
   } else if (statuses.some((s) => s === "reconnecting" || s === "connecting")) {
     tone = "warn";
-    label = "Reconnecting";
+    label = "Connecting";
   } else if (statuses.some((s) => s === "offline")) {
     tone = "risk";
-    label = "Realtime offline";
+    label = "Offline";
   } else if (apiStatus === "unknown") {
-    tone = "warn";
-    label = "Connecting";
+    tone = "ok";
+    label = "Ready";
   }
   return (
     <span
       title={`API: ${apiStatus}${statuses.length ? ` · sockets: ${Object.entries(sockets).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}`}
       className={clsx(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
-        tone === "ok" && "bg-emerald-900/80 text-emerald-100",
-        tone === "warn" && "bg-amber-100 text-amber-800",
-        tone === "risk" && "bg-red-100 text-red-700",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide",
+        tone === "ok" && "bg-emerald-950/70 text-emerald-300 border border-emerald-500/40",
+        tone === "warn" && "bg-amber-950/70 text-amber-300 border border-amber-500/40",
+        tone === "risk" && "bg-red-950/70 text-red-300 border border-red-500/40",
       )}
     >
-      {tone === "risk" ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
+      <span className={clsx("h-1.5 w-1.5 rounded-full", tone === "ok" ? "bg-emerald-400 animate-pulse" : tone === "warn" ? "bg-amber-400" : "bg-red-400")} />
       {label}
     </span>
   );
