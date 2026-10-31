@@ -4,7 +4,7 @@
 > *"A chatbot answers questions. A teammate closes the loop."*
 
 Saarthi is an autonomous, multi-agent AI teammate designed for Indian merchants and consumers:
-1. **Saarthi Care (Merchant Side):** Proactive zero-ticket support, Soundbox diagnostics, and consent-first loan offers. Hero: *Ramesh*, Kirana owner in Delhi.
+1. **Saarthi Care (Merchant Side):** On-demand check-ups (the merchant taps "Check my settlement", chats, speaks, or presses the Soundbox button), zero-ticket resolution, Soundbox diagnostics and consent-first loan offers. Nothing runs until the user asks. Hero: *Ramesh*, Kirana owner in Delhi.
 2. **Saarthi Travel (Consumer Side):** Multi-agent concierge that builds visible roadmaps, searches flights in parallel, applies transparent scoring, and hands over to the human to review and pay. Hero: *Arjun* & *Meena Aunty*.
 
 ---
@@ -72,12 +72,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 5. Seed database (Merchants, 121 Indian airports, Kaggle flights, policies)
-python scripts/seed.py
+python scripts/seed.py --reset
 
-# 6. Run test suite (18 unit and golden tests)
+# 6. Run test suite (offline)
 pytest -v
 
-# 7. Run evaluation suite (40 labeled cases across all scenarios)
+# 7. Run evaluation suite (offline, temp DB)
 python eval/run_eval.py
 
 # 8. Start development server
@@ -102,44 +102,21 @@ curl http://localhost:8000/health/adapters
 
 ---
 
-## API Catalog (Every Endpoint)
+## API (v1)
 
-| Method | Endpoint | Description |
+All business endpoints live under `/api/v1` and require a Bearer token (demo tokens via
+`POST /api/v1/auth/demo-token` when `DEMO_MODE=true`). See `scripts/curl_examples.md` for one call per
+demo beat and `/docs` (OpenAPI) for the full list. Key on-demand endpoints:
+
+| Method | Endpoint | Trigger |
 | :--- | :--- | :--- |
-| `GET` | `/health` | System health check and database probe |
-| `GET` | `/health/adapters` | Adapter status (active provider vs fallback) |
-| `GET` | `/control/state` | Current autonomy state and safety thresholds |
-| `POST` | `/control/kill-switch` | Pause or resume global autonomous mutations |
-| `POST` | `/chat` | Main conversational endpoint (merchants & travellers) |
-| `POST` | `/voice/stt` | Transcribe speech audio to text |
-| `POST` | `/voice/tts` | Synthesize text to spoken Indic audio |
-| `POST` | `/voice/turn` | Full audio voice turn: STT -> Captain -> TTS |
-| `GET` | `/pulse/{merchant_id}` | 20-second Morning Business Pulse (text + audio) |
-| `POST` | `/events/inject` | Chaos demo injector (settlement, battery, dispute) |
-| `GET` | `/events` | History of injected and scheduled events |
-| `GET` | `/merchants/{id}` | Merchant profile, language, and KYC status |
-| `GET` | `/transactions` | Filter transaction history by merchant, date, status |
-| `GET` | `/settlements/{id}` | Expected vs actual reconciliation & deduction items |
-| `GET` | `/refunds/{txn_id}` | Refund status, SLA dates, and bank reference UTR |
-| `GET` | `/devices/{id}/status`| Soundbox battery, network, and heartbeat health |
-| `POST` | `/tickets` | Raise support or replacement ticket with SLA |
-| `POST` | `/notifications` | Dispatch notification to Soundbox, WhatsApp UI, or Push |
-| `GET` | `/loans/eligibility/{id}`| Loan eligibility check and limit pre-approval |
-| `POST` | `/loans/emi` | Mathematical reducing-balance EMI calculator |
-| `POST` | `/loans/requests` | Create loan application (status: `awaiting_approval`) |
-| `POST` | `/loans/requests/{id}/approve` | Human operator approves loan in console |
-| `POST` | `/loans/requests/{id}/reject` | Human operator rejects loan in console |
-| `GET` | `/disputes/{id}` | Chargeback claim details and evidence requirement |
-| `POST` | `/playbooks` | Save a resolved escalation as a learned rule |
-| `GET` | `/playbooks/match` | Match incoming issue to stored playbooks |
-| `GET` | `/escalations` | List open human escalation dossiers |
-| `POST` | `/escalations/{id}/resolve` | Resolve escalation and optionally save as playbook |
-| `GET` | `/travel/flights/search` | Search domestic flights with multi-agent ranking |
-| `GET` | `/travel/airports` | Indian airport lookup by city name or IATA code |
-| `POST` | `/travel/booking-summary`| Generate human review & pay handoff object |
-| `GET` | `/travel/status/{flight_no}`| Simulated flight delays, gate status, weather |
-| `GET` | `/audit` | Immutable audit trail records |
-| `GET` | `/metrics` | Live counters: deflection, tickets prevented, savings |
-| `WS` | `/ws/trace` | Live glass-box multi-agent execution step stream |
-| `WS` | `/ws/merchant/{id}` | Live Soundbox chime broadcasts & merchant chat stream |
-| `WS` | `/ws/console` | Live Ops console stream for escalations and metrics |
+| `POST` | `/api/v1/checkups` | "Check my settlement / device / payments / refunds / all" button |
+| `POST` | `/api/v1/issues` | "Raise an issue" (check-up first; ticket only if unresolved or insisted) |
+| `POST` | `/api/v1/soundbox/{device_id}/ask` | Soundbox button or voice command; returns audio_url |
+| `POST` | `/api/v1/chat` | Chat message (Hindi / Hinglish / English) |
+| `POST` | `/api/v1/voice/turn` | Voice note → reply with audio_url |
+| `GET` | `/api/v1/pulse/{merchant_id}`, `/api/v1/advice/{merchant_id}` | Morning pulse / festival & battery advice, on request |
+| `GET` | `/api/v1/travel/status/{booking_ref}` | Traveller asks for booking status |
+| `POST` | `/api/v1/demo/scenario/{name}` → `/api/v1/demo/trigger/{name}` | Demo: set up data, then simulate the user's tap |
+| `GET` | `/api/v1/metrics` | Business metrics (ops/admin), computed from the DB |
+| `WS` | `/ws/trace`, `/ws/merchant/{id}`, `/ws/console` | Events sent only in response to user triggers |

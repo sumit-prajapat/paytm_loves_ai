@@ -1,66 +1,59 @@
 # CLAUDE.md — Saarthi backend (project memory)
 
 Saarthi = multi-agent AI teammate for Indian users (Hindi / Hinglish / English, voice-first).
-Paytm AI Hackathon, Track 3 (Autonomous AI Teammates). Backend only; a teammate builds the frontend.
-Two faces on one agent framework:
-- **Saarthi Care** (merchant): settlement gap, Soundbox offline, payment failed / refund, chargeback
-  escalation, consent-first loan offers, playbook learning. Hero: Ramesh (m_ramesh), gap 1800 = 1200 refund + 600 fees.
-- **Saarthi Travel** (consumer): planner → parallel search → deterministic ranker → guardian → HUMAN review & pay.
+Paytm AI Hackathon, Track 3. Backend only; a teammate builds the frontend.
+- **Saarthi Care** (merchant): user-triggered check-ups for settlement gap, Soundbox, payments/refunds,
+  chargebacks (escalate), consent-first loans, playbook learning. Hero: Ramesh (m_ramesh), gap 1800 = 1200 + 600.
+- **Saarthi Travel** (traveller): planner → search (±1 day) → deterministic ranker → Guardian → HUMAN review & pay.
 
 ## Architecture map
 | Path | Responsibility |
 |---|---|
-| `app/main.py` | FastAPI app, middleware, exception handlers, router registration, lifespan |
-| `app/config.py` | pydantic-settings `Settings` (reads `.env`) |
-| `app/api/*` | HTTP + WS routers (chat, voice, pulse, travel, loans, escalations, control, audit, metrics, ws) |
-| `app/agents/*` | Captain (orchestrator), Listener, Context, Diagnostician, Guardian, Action, Handoff, Offer, Planner, Search, Ranker; `router.py` (unused) |
-| `app/services/*` | Deterministic tools: settlement, device, loan/EMI, travel scoring, playbooks, templates, number validator, audit chain, kill switch, metrics |
-| `app/adapters/*` | External deps behind adapters: llm (Gemini/Mock), stt (Sarvam/Mock), tts (edge-tts/Mock), flights (seeded DB), payments (mock link), notify (in-app WS bus), weather, holidays |
-| `app/rag/*` | Offline BM25 policy retriever + policy corpus |
-| `app/events/*` | APScheduler fleet scan + event queue + rules (**violates R11; to be removed in Step B**) |
-| `app/trace/bus.py` | Writes every agent step to `agent_runs` + broadcasts on `/ws/trace` |
-| `app/core/*` | JWT auth/RBAC/IDOR deps, rate limiter, correlation IDs, PII masking, injection detection, idempotency |
-| `app/db/*` | SQLAlchemy models, session, seed + dataset loaders (airports, routes, Kaggle flights, PaySim) |
-| `tests/` | pytest (in-memory SQLite). `eval/` 40 labeled cases + `run_eval.py`. `scripts/` seed, backup, demo, security demo |
+| `app/main.py` | App, middleware, error handlers; routers under `/api/v1`, probes `/health*`, WS `/ws/*` |
+| `app/agents/captain.py` | **Only orchestrator entry point.** `CaptainAgent.handle(Trigger, db)`; no event/proactive path |
+| `app/agents/*` | listener (Tier 0→1), context, diagnostician (+playbooks), guardian (action classes), action (templates + R1), handoff (dossier, Tier 2 summary), offer (consent), planner/search/ranker (travel) |
+| `app/nlu/rules.py` | Tier 0 intent + slots (Devanagari, Hinglish, English, typos, word-boundary matching) |
+| `app/llm/gateway.py` | The ONLY path to an LLM: budgets, classification cache, cost accounting, visible degrade |
+| `app/i18n/` | `locales/<lang>.json` templates (hi, hinglish, en; add a file for more), `numbers.py` (₹ format, paise, spoken numbers) |
+| `app/services/` | checkup_service (per-merchant diagnostics), usage_service (quotas/budget), metrics_service (DB-derived), pulse_service, travel_service, loan, playbook, audit (hash chain), kill_switch, voice_service, audio_store (signed URLs) |
+| `app/api/` | checkups, issues, soundbox, pulse/advice, chat, voice, travel, loans, escalations, playbooks, demo, audio, … |
+| `app/ops/housekeeping.py` | The ONLY scheduler: expire audio files, prune memory cache. Must never touch user data |
+| `app/db/` | models (incl. checkups, usage_events, offer_consents, conversation_states, travel_bookings), seed, heroes (idempotent + reset) |
+| `app/trace/bus.py` | agent_runs + `/ws/trace`; enforces R3 tool allow-list + per-turn tool budget; masks PII |
+| `tests/` | 108 tests: golden scenarios from user triggers, R11, R12, NLU/validator, security P0s |
+| `eval/run_eval.py` | 40 cases through the real Captain on a temp DB; computed PASS/FAIL |
 
-## Non-negotiable rules (verify in CODE, not prompts)
-- R1 numbers only from deterministic tools; validator rejects any number not in that turn's tool results.
-- R2 Guardian reviews every action before execution (allow / block / escalate).
-- R3 payments, loan approvals, refund issuance are HUMAN-ONLY (code-level denylist).
-- R4 every agent step + tool call → `agent_runs` + `audit_log` + `/ws/trace`.
-- R5 global kill switch: reads allowed, actions → escalate to human.
-- R6 consent-first selling: max ONE offer per interaction, stop on decline, log refusal.
-- R7 never accept/store PIN / OTP / password / card numbers.
-- R8 all data simulated. R9 every external dep behind an adapter with mock fallback; runs fully offline.
-- R10 stop-and-ask: external needs → `/NEEDS_FROM_USER.md`; never invent keys or fake external calls.
-- R11 ON-DEMAND ONLY: nothing runs for a user until that user (or an authorized ops agent) triggers it.
-  No per-user schedulers/loops/watchers/pushes. Scheduler only for housekeeping that touches no user data.
-- R12 cost scales with requests: Tier 0 (no LLM, templates) → Tier 1 (cheap LLM: intent/slots) → Tier 2
-  (strong LLM: ambiguity, escalation summaries, travel nuance). Quotas, cooldowns, caching, budget guard,
-  per-request cost accounting (tier, tokens, INR) in `agent_runs` and business metrics.
+## Rules (verify in CODE)
+R1 numbers only from tools; validator checks replies vs tool facts (never vs the reply). R2 Guardian on every action.
+R3 payment / loan approval / refund issuance / booking confirm = human-only (runtime allow-list + Guardian block).
+R4 every step → agent_runs + audit (chained) + `/ws/trace`. R5 kill switch: reads continue, mutations escalate.
+R6 max one offer per interaction, cooldown, decline persisted forever. R7 never accept PIN/OTP/password/card.
+R8 simulated data. R9 adapters + offline fallback; failures are visible, never silent. R10 stop-and-ask → NEEDS_FROM_USER.md.
+**R11** nothing runs until the user (or audited ops agent) triggers it; no per-user/fleet jobs, watchers or pushes.
+**R12** Tier 0 (rules + templates) → Tier 1 (cheap LLM: intent/slots) → Tier 2 (summaries); quotas, cooldown,
+caches, global budget, cost in agent_runs/usage_events/metrics.
 
-## How to run (Windows, Git Bash; venv already at `.venv`, Python 3.14)
+## How to run (Windows Git Bash; venv `.venv`, Python 3.14)
 ```bash
 .venv/Scripts/python.exe -m pip install -r requirements.txt
-.venv/Scripts/python.exe scripts/seed.py                 # seeds ./saarthi.db
+.venv/Scripts/python.exe scripts/seed.py --reset        # required after schema changes (simulated data)
 .venv/Scripts/python.exe -m uvicorn app.main:app --port 8000
-.venv/Scripts/python.exe -m pytest -q                    # 31 tests
-.venv/Scripts/python.exe eval/run_eval.py                # overwrites eval/report.md
+.venv/Scripts/python.exe -m pytest -q                   # offline by design (conftest blanks keys)
+.venv/Scripts/python.exe eval/run_eval.py               # offline, temp DB, writes eval/report.md
 ```
-**Offline / audit mode** (no external calls, no cost): prefix with
-`GEMINI_API_KEY= SARVAM_API_KEY= TTS_PROVIDER=mock` (env vars override `.env`).
-Use a scratch DB via `DATABASE_URL=sqlite+aiosqlite:///<path>/audit.db` to avoid mutating `saarthi.db`.
-Demo creds: `POST /auth/demo-token {"role": merchant|traveller|ops_agent|admin, "target_id"?}` (DEMO_MODE only);
-users `merchant_ramesh`, `merchant_sunita`, `traveller_arjun`, `ops_agent_1` (`DemoPass@123`), `admin_user` (`AdminPass@123`).
+Offline server: prefix `GEMINI_API_KEY= SARVAM_API_KEY= LLM_PROVIDER=mock TTS_PROVIDER=mock`.
+Scratch DB: `DATABASE_URL=sqlite+aiosqlite:///<path>/x.db`. Windows console: `PYTHONIOENCODING=utf-8`.
+Demo tokens: `POST /api/v1/auth/demo-token {"role": merchant|traveller|ops_agent|admin, "target_id"?}` (DEMO_MODE).
+Users: merchant_ramesh, merchant_sunita, merchant_gupta (m_disputed), traveller_arjun, traveller_meena,
+ops_agent_1 (`DemoPass@123`), admin_user (`AdminPass@123`). Demo: `/api/v1/demo/scenario/{name}` → `/demo/trigger/{name}`.
 
 ## Conventions
-- Async SQLAlchemy 2.x; agents return `AgentEnvelope` (agent, status, result, confidence, evidence, next, language, latency_ms).
-- All money/dates in replies come from services + `app/services/templates.py`; LLM only classifies/explains.
-- Never print `.env` values. `.env` holds real GEMINI/SARVAM keys (both currently non-working, see AUDIT_REPORT).
-- Windows console is cp1252: set `PYTHONIOENCODING=utf-8` when printing ₹ / Devanagari.
-- Not a git repo yet (see NEEDS_FROM_USER). Commits planned per logical change once initialised.
+- New user-facing text = a template key in ALL locale files (test enforces identical keys); numbers only via placeholders.
+- Agents emit steps with allow-listed tool names (`AGENT_ALLOW_LISTS` in `app/core/security.py`).
+- Services flush; the Captain/route commits. Audit writes only via `record_audit_log`.
+- Never print `.env` values (it holds real keys). Commits end with the Co-Authored-By line.
 
 ## Phase status
-- Phases 1–7: exist, but the audit (`/AUDIT_REPORT.md`, 2026-10-31) found many PARTIAL/BROKEN items.
-- **Step 0 + Step A: DONE (audit only, no app code changed).** Waiting for user "GO" for Step B
-  (on-demand refactor + R12 cost controls). Steps C–G pending.
+- Step 0/A audit: done (`AUDIT_REPORT.md`). **Step B: DONE** (R11 refactor + R12 + P0 security, 108 tests green,
+  eval 82.5%, see "Before / after: Step B"). Waiting for user "GO" for Step C.
+- Next: Step C (strengthen + red-team), D (features, eval 50+ relabelled), E (contract), F (ops/scale), G (handoff).

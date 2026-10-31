@@ -239,12 +239,69 @@ Blocking calls in async code: `bcrypt.checkpw` in `/auth/login` (CPU-bound, ~100
 
 ---
 
-## Before / after (to be filled in Step B+)
-| Metric | Before (Step A) | After |
+## Before / after: Step B (2026-10-31)
+
+Commits: `b97e98e` (refactor), `596fbb2` (tests), `caa6c79` (eval), `4952001` (schema guard).
+All numbers below were measured offline (MockLLM / mock STT / mock TTS), SIMULATED DATA.
+
+| Metric | Before (Step A) | After (Step B) | Evidence |
+|---|---|---|---|
+| pytest | 31 passed | **108 passed**, ruff clean | `pytest -q` (2 min 31 s) |
+| Background work with zero requests | 10 fleet scans in ~5 min (~11 520/day) | **0 rows, 0 SQL, 0 WS events in 65 s idle** | live server :8012 run; `test_zero_requests_means_zero_llm_calls_and_no_user_reads` |
+| Scheduler jobs | `fleet_anomaly_check` (all merchants) | `expire_audio_files`, `prune_memory_cache` only | `test_runtime_scheduler_registers_only_housekeeping_jobs` |
+| Chat / check-up tier mix | ~100% Tier 1 (LLM on every message) | eval: **34/40 Tier 0**, 4 Tier 1, 2 Tier 2; live hero run: 23/23 Tier 0 | `eval/report.md`, `/api/v1/metrics` |
+| Hero cases needing an LLM | all | **none** (settlement, device, refunds, Soundbox, travel at Tier 0) | `test_hero_checkups_resolve_at_tier0`, `test_hero_chat_phrases_resolve_at_tier0` |
+| `/audit/verify` after real flows | chain_intact=false (17/23 unchained) | **chain_intact=true** | `test_p0_audit_chain_intact_after_full_flows` |
+| Unauthenticated mutating endpoints | 4 | **0** (`/events/inject`, `/notifications` deleted; others need auth/role) | `test_p0_previously_open_endpoints_now_require_auth` |
+| Subject spoofing (IDOR) | `role:"anything"`, unauth voice | subject always from token; ops must name it and is audited | `test_p0_no_subject_spoofing` |
+| R1 validator | circular in eval; whitelist {0..48} | checks tool facts only; no free whitelist; Devanagari digits; final-reply guard | `test_validator_is_not_circular_and_handles_formats`; eval violations **0** |
+| Fabricated numbers (§4) | ≥ 8 classes | removed: refund/chargeback/pulse/travel numbers now come from the merchant's own rows | `test_c_refund_uses_real_record_and_escalates_overdue` |
+| Playbook learning | repeat case still escalated | **repeat case auto-resolves** with learned safe action | `test_playbook_learning_next_case_auto_resolves` |
+| Consent (R6) | EMI question created an application; re-offer after decline | quote ≠ application; decline persisted, never re-offered | `test_f_loan_quote_is_not_an_application_and_decline_stops_offers` |
+| Hindi (Devanagari), typos | generic "processed" reply | understood at Tier 0 | `test_a_settlement_chat_languages` |
+| Travel route/date | always DEL→BOM tomorrow | real route/date, ±1 day, one question at a time, all 30 Indian city pairs seeded | `test_e_travel_respects_route_and_asks_one_question_at_a_time` |
+| Voice with unknown audio | invented "Delhi se Mumbai flight" | `transcript_unavailable` + "please repeat" | `test_voice_turn_requires_auth_and_never_invents_speech` |
+| Eval | 87.5% with hardcoded PASSED, circular R1 | **82.5% accuracy (PASS)**, recall 100% (PASS), precision 55.6% (FAIL, see below), violations 0 (PASS), travel consistency 3/3 | `python eval/run_eval.py` |
+| Latency (live, offline adapters) | chat 22–36 ms | check-up fresh 29 ms, cached p95 10.5 ms, chat Tier 0 p95 12.8 ms, Soundbox 11 ms, travel shortlist p95 13.7 ms, pulse 10 ms | `live_perf.py` run |
+
+### Status changes for audit rows (Step B scope)
+| Row | Was | Now |
 |---|---|---|
-| pytest | 31 passed | — |
-| Background fleet scans/day | ~11 520 | — |
-| Chat Tier-0 share | 0% | — |
-| `/audit/verify` | chain_intact=false | — |
-| Unauthenticated mutating endpoints | 4 (`/events/inject`, `/notifications`, `/playbooks`, `/voice/turn`) | — |
-| Real validator violations found | ≥ 8 classes (§4) | — |
+| R11 no background processing / check-up API / demo setup-vs-trigger / Captain entry | BROKEN / MISSING | **DONE** |
+| R12 tiered pipeline, quotas, cooldown, caching, budget guard, cost accounting, metrics | MISSING | **DONE** (stateless workers: PARTIAL, Step F) |
+| Listener intent + slots | BROKEN | **DONE** for Tier 0; Tier 1 via gateway |
+| Gemini adapter | BROKEN | **PARTIAL**: header auth, configurable model, strict JSON, visible failure. Live model still unverified (NEEDS #1) |
+| Diagnostician, Action fabricated numbers | BROKEN | **DONE** |
+| Guardian on every action | PARTIAL | **DONE** (care, offer, loan, travel handoff, trick refusals) |
+| Playbook learning | BROKEN | **DONE** |
+| Scenario C refund / F loan / E travel | BROKEN | **DONE** (flex-date only ±1 day; nearby airports, elder-mode weighting from profile: Step D) |
+| Travel status | BROKEN | **DONE** (booking-ref based, on request, owner-only) |
+| `/voice/stt`, `/voice/turn` | BROKEN | **DONE** offline; real Sarvam model unverified (NEEDS #2) |
+| Spoken Hindi numbers | PARTIAL | **DONE** (full 0–99 tables, Devanagari + Roman) |
+| R1 validator / R3 runtime allow-list / audit chain / AuthN-IDOR | BROKEN / PARTIAL | **DONE** |
+| R5 kill switch | PARTIAL | **DONE** for semantics (reads continue, mutations escalate); persistence across workers: Step F |
+| Business `/metrics` | BROKEN | **DONE** (DB-derived, ops/admin only) |
+| Error format, `/api/v1` | BROKEN / MISSING | `/api/v1` **DONE**; single error schema: Step E |
+| Rate limits | PARTIAL | per-user key (IP fallback); multi-worker store: Step F |
+
+### Eval mismatches explained (not hidden)
+- `case_011, 013, 014, 015`: Sunita's refund is overdue, and the spec requires overdue refunds to **escalate**. The old labels say
+  `auto_resolve` (written for the previous hardcoded behaviour). These four are also the only escalation false positives,
+  which is why precision is 55.6%. Labels will be corrected with justification in Step D, not silently.
+- `case_029, 030`: the message has no date / no destination, so Saarthi asks ONE question (spec) instead of assuming.
+- `case_037` ("kuch samajh nahi aa raha device me"): runs a device check instead of asking. Debatable; reviewed in Step D.
+
+### New issues found during Step B (fixed)
+- Re-running the seed duplicated settlement line items (gap 1800 but items summed 3600), which would make the hero
+  case look unreconciled. Seed is now idempotent.
+- Audit hashes were computed with timezone-aware timestamps that SQLite strips on read, so the chain could never verify
+  after reload. Hashes now use naive UTC.
+- `scalar_one_or_none()` on unbounded settlement queries crashed with duplicate rows (`LIMIT 1` now).
+
+### Known gaps carried to later steps
+- Existing `saarthi.db` uses the old schema: startup now stops with
+  "run `python scripts/seed.py --reset`" (Alembic migrations in Step F). Your DB was not modified.
+- Single error format, OpenAPI contract docs, WS event schemas: Step E.
+- Kill switch, rate limits and caches are per process: Step F (Redis optional).
+- Audit chain lock is per process; multi-worker needs a DB-level sequence: Step F.
+- Real LLM / STT / edge-tts behaviour not verified (offline run by design; see NEEDS_FROM_USER).
