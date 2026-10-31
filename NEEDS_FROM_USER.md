@@ -59,3 +59,13 @@ This document tracks all external dependencies, API keys, credentials, and datas
 | **Demo User Accounts** | None required | **Seeded & Verified** (`DemoPass@123`) |
 | **Security Test Suite** | None required | **31/31 Tests Passing** |
 | **Benchmark Eval** | None required | **87.5% Acc, 100% Prec/Recall, 19.3ms** |
+
+---
+
+## 3. Frontend & Visual Asset Attribution
+
+- **Paytm ❤️ Ai Brand Badge & Hero Visual:** Provided directly by user (`media_1793440008313.jpg`), stored in `frontend/public/assets/paytm_ai_logo.jpg` and `frontend/public/assets/paytm_ai_hero.jpg`.
+- **Hero Overlay & Fallback:** Dark translucent gradient overlay (`from-navy-900/90 via-navy-900/85 to-navy-900/98`) with CSS `.rangoli-pattern` fallback SVG.
+- **On-Demand Rule Verification:** Zero periodic polling loops added. All metrics sourced on-demand from `/metrics`.
+- **i18n & Theme:** Complete trilingual support (`hi`, `hinglish`, `en`), dark/light mode toggle with persistence, and Elder Mode typography scaling.
+
