@@ -22,8 +22,8 @@ function Welcome({ persona }: { persona: PersonaId }) {
   const first = PERSONAS[persona].label.split(" ")[0];
   return (
     <div className="m-auto flex max-w-[320px] flex-col items-center gap-2 py-6 text-center">
-      <div className="flex items-center justify-center rounded-2xl bg-white p-2 shadow-sm border border-line">
-        <BrandLogo size={42} />
+      <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md border border-line">
+        <BrandLogo size={52} className="min-w-[110px]" />
       </div>
       <div className="text-lg font-bold">{t("welcome", lang)} {first} ji 🙏</div>
       <p className="text-sm text-muted">{t("welcome.sub", lang)}</p>
@@ -116,7 +116,7 @@ export function MerchantChat({ persona, onPersona, height }: { persona: PersonaI
       {escalated && <div className="bg-risk-bg px-3 py-1 text-[11.5px] font-semibold text-risk">🧑‍💼 Insaan dekh rahe hain · {last?.escalation?.ticket_id}</div>}
       <span className="sr-only">{p.label}</span>
       {messages.length === 0 ? (
-        <div className="flex flex-1 overflow-y-auto bg-slate-50 p-3"><Welcome persona={persona} /></div>
+        <div className="flex flex-1 overflow-y-auto bg-bg text-ink p-3"><Welcome persona={persona} /></div>
       ) : (
         <ChatThread
           persona={persona}

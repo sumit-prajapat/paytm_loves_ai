@@ -196,14 +196,14 @@ export function MetricsBar({ dense }: { dense?: boolean }) {
   ];
   const tier0 = m?.tier_mix?.tier0?.pct;
   return (
-    <div className={clsx("grid grid-cols-2 gap-2 border-b border-line bg-slate-50 px-4 py-3 sm:grid-cols-3 lg:grid-cols-6")}>
+    <div className={clsx("grid grid-cols-2 gap-2 border-b border-line bg-card/60 px-4 py-3 sm:grid-cols-3 lg:grid-cols-6")}>
       {tiles.map((t) => (
-        <div key={t.label} className="rounded-xl border border-line bg-white px-3 py-2" title={t.hint}>
-          <small className="text-[11px] text-muted">{t.label}</small>
-          <b className={clsx("block text-navy-700", dense ? "text-lg" : "text-2xl")}>{t.value}</b>
+        <div key={t.label} className="rounded-xl border border-line bg-card px-3 py-2 shadow-sm" title={t.hint}>
+          <small className="text-[11px] font-semibold text-muted">{t.label}</small>
+          <b className={clsx("block text-ink", dense ? "text-lg" : "text-2xl")}>{t.value}</b>
         </div>
       ))}
-      <div className="flex flex-col items-start justify-center gap-1 rounded-xl border border-dashed border-line bg-white px-3 py-2">
+      <div className="flex flex-col items-start justify-center gap-1 rounded-xl border border-dashed border-line bg-card px-3 py-2">
         <SimulatedBadge />
         <small className="text-[11px] text-muted">
           {m ? `Tier 0: ${tier0 ?? 0}% · LLM calls ${m.llm_calls} · avoided ${m.llm_calls_avoided}` : "metrics loading…"}
@@ -244,8 +244,8 @@ export function BrandLogo({ size = 32, className }: { size?: number; className?:
       <img
         src="/assets/paytm_ai_logo.png"
         alt="Paytm loves AI"
-        className={clsx("rounded-md bg-white p-0.5 object-contain shadow-sm", className)}
-        style={{ height: size, width: "auto", maxHeight: 44 }}
+        className={clsx("inline-block rounded-lg bg-white px-2 py-1 object-contain shadow-sm border border-white/20", className)}
+        style={{ height: size, width: "auto", minWidth: 80, maxHeight: 48 }}
         onError={() => setErr(true)}
       />
     );

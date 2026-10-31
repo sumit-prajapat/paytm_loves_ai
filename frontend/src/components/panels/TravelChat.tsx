@@ -90,12 +90,12 @@ export function TravelChat({ persona, onPersona, height }: { persona: PersonaId;
       {p.note && <div className="bg-slate-100 px-3 py-1 text-[11px] text-muted">{p.note}</div>}
       {apiStatus === "down" && <div role="alert" className="flex items-center gap-1.5 bg-risk-bg px-3 py-1.5 text-xs text-risk"><WifiOff className="h-4 w-4" /> {t("offline", lang)}</div>}
       {messages.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto bg-slate-50 p-4 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto bg-bg text-ink p-4 text-center">
           <Plane className="h-10 w-10 text-sky-500" />
-          <b className="phone-text">{t("trip.placeholder", lang)}</b>
+          <b className="phone-text text-ink">{t("trip.placeholder", lang)}</b>
           <p className="text-xs text-muted">Saarthi plan banata hai, options tolta hai, aur summary deta hai. Payment hamesha aap khud karte hain.</p>
           {EXAMPLES[persona]?.map((ex) => (
-            <button key={ex} onClick={() => sendText(persona, ex)} className="min-h-[44px] rounded-full border border-sky-200 bg-sky-100 px-4 text-[13px] font-semibold text-sky-900">{ex}</button>
+            <button key={ex} onClick={() => sendText(persona, ex)} className="min-h-[44px] rounded-full border border-sky-300 dark:border-sky-700 bg-sky-100 dark:bg-sky-950/80 px-4 text-[13px] font-bold text-sky-900 dark:text-sky-200 hover:bg-sky-200 transition">{ex}</button>
           ))}
         </div>
       ) : (

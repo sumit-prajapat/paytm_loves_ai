@@ -303,10 +303,10 @@ export function BookingStatusCard({ b }: { b: TravelBooking }) {
 
 export function ScamWarning({ lang, onDismiss }: { lang?: Lang | null; onDismiss?: () => void }) {
   return (
-    <div className="flex items-start gap-2 bg-ok-bg px-3 py-1.5 text-[12px] text-emerald-900">
-      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+    <div className="flex items-start gap-2 border-b border-emerald-300 dark:border-emerald-800 bg-emerald-100 dark:bg-emerald-950 px-3 py-1.5 text-[12px] font-semibold text-emerald-950 dark:text-emerald-200">
+      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
       <span className="flex-1">{t("scam", lang)}</span>
-      {onDismiss && <button aria-label="Dismiss" onClick={onDismiss} className="text-emerald-800">✕</button>}
+      {onDismiss && <button aria-label="Dismiss" onClick={onDismiss} className="text-emerald-800 dark:text-emerald-300">✕</button>}
     </div>
   );
 }
