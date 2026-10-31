@@ -32,10 +32,34 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
+class SchemaOutOfDate(RuntimeError):
+    pass
+
+
+def _missing_columns(sync_conn) -> list[str]:
+    from sqlalchemy import inspect
+
+    insp = inspect(sync_conn)
+    missing = []
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        missing += [f"{table.name}.{c.name}" for c in table.columns if c.name not in existing]
+    return missing
+
+
 async def init_db() -> None:
-    """Creates all database tables defined in Base metadata."""
+    """Create missing tables, then fail fast if existing tables predate the current schema
+    (create_all never adds columns; Alembic migrations arrive in Step F)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        missing = await conn.run_sync(_missing_columns)
+    if missing:
+        raise SchemaOutOfDate(
+            f"Database schema is out of date (missing {missing[:5]}...). "
+            "Re-create the SIMULATED demo DB with: python scripts/seed.py --reset"
+        )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
