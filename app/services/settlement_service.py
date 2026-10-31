@@ -9,65 +9,51 @@ from app.db.models import Settlement
 
 
 class SettlementService:
-    """Deterministic settlement query, reconciliation, and breakdown service."""
+    """Deterministic settlement query, reconciliation and breakdown for ONE merchant."""
 
     @staticmethod
-    async def get_settlement(db: AsyncSession, merchant_id: str, date_str: str | None = None) -> dict[str, Any] | None:
-        if not date_str:
-            date_str = datetime.date.today().isoformat()
-
-        stmt = (
-            select(Settlement)
-            .options(selectinload(Settlement.items))
-            .where(Settlement.merchant_id == merchant_id, Settlement.date == date_str)
+    async def get_settlement(
+        db: AsyncSession, merchant_id: str, date_str: str | None = None
+    ) -> dict[str, Any] | None:
+        base = select(Settlement).options(selectinload(Settlement.items)).where(
+            Settlement.merchant_id == merchant_id
         )
-        result = await db.execute(stmt)
-        settlement = result.scalar_one_or_none()
-
-        if not settlement:
-            # Fallback to latest settlement if specific date not found
-            fallback_stmt = (
-                select(Settlement)
-                .options(selectinload(Settlement.items))
-                .where(Settlement.merchant_id == merchant_id)
-                .order_by(Settlement.date.desc())
-            )
-            fallback_result = await db.execute(fallback_stmt)
-            settlement = fallback_result.scalar_one_or_none()
-
-        if not settlement:
+        if date_str:
+            base = base.where(Settlement.date == date_str)
+        # Latest first; LIMIT 1 so duplicate rows can never raise MultipleResultsFound.
+        stmt = base.order_by(Settlement.date.desc(), Settlement.id.desc()).limit(1)
+        settlement = (await db.execute(stmt)).scalars().first()
+        if settlement is None:
             return None
 
-        items_breakdown = []
-        total_items_sum = 0.0
-        refund_adj = 0.0
-        fee_sum = 0.0
-        chargeback_hold = 0.0
-
+        refund_adj = fee_sum = chargeback_hold = other = 0.0
+        items = []
         for item in settlement.items:
-            items_breakdown.append({"type": item.type, "amount": item.amount})
-            total_items_sum += item.amount
+            items.append({"type": item.type, "amount": item.amount})
             if item.type == "refund_adjustment":
                 refund_adj += item.amount
             elif item.type == "fee":
                 fee_sum += item.amount
             elif item.type == "chargeback_hold":
                 chargeback_hold += item.amount
-
-        is_reconciled = abs(settlement.gap - total_items_sum) < 0.01
-
+            else:
+                other += item.amount
+        explained = round(refund_adj + fee_sum + chargeback_hold + other, 2)
         return {
             "id": settlement.id,
             "merchant_id": settlement.merchant_id,
             "date": settlement.date,
+            "is_today": settlement.date == datetime.date.today().isoformat(),
             "expected": settlement.expected,
             "actual": settlement.actual,
             "gap": settlement.gap,
-            "items": items_breakdown,
+            "items": items,
             "refund_adjustment": refund_adj,
             "fees": fee_sum,
             "chargeback_hold": chargeback_hold,
-            "is_reconciled": is_reconciled,
+            "other_deductions": other,
+            "explained_total": explained,
+            "is_reconciled": abs(settlement.gap - explained) < 0.01,
             "explanation_needed": settlement.gap > 0,
         }
 

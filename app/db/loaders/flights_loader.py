@@ -2,6 +2,7 @@ import csv
 import datetime
 import logging
 import os
+from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -156,73 +157,65 @@ def build_guaranteed_demo_flights(tomorrow_str: str, day_after_str: str) -> list
     ]
 
 
+@lru_cache(maxsize=4)
+def _parse_csv(csv_path: str, per_route: int) -> tuple[dict, ...]:
+    """Parse once per process (the CSV has ~300k rows); keep at most `per_route` economy fares
+    per Indian city pair."""
+    rows: list[dict] = []
+    if not os.path.exists(csv_path):
+        return ()
+    per_route_count: dict[tuple[str, str], int] = {}
+    try:
+        with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
+            for row in csv.DictReader(f):
+                src = row.get("source_city", "").strip()
+                dst = row.get("destination_city", "").strip()
+                route = (src, dst)
+                if (row.get("class", "Economy") != "Economy" or src not in CITY_TO_IATA
+                        or dst not in CITY_TO_IATA or src == dst or per_route_count.get(route, 0) >= per_route):
+                    continue
+                try:
+                    duration_min = int(float(row.get("duration", 2.2)) * 60)
+                    price = float(row.get("price", 5000))
+                except ValueError:
+                    continue
+                per_route_count[route] = per_route_count.get(route, 0) + 1
+                airline = row.get("airline", "Air India").replace("_", " ")
+                stops_str = row.get("stops", "zero").lower()
+                rows.append({
+                    "airline": airline,
+                    "from_iata": CITY_TO_IATA[src],
+                    "to_iata": CITY_TO_IATA[dst],
+                    "dep_time": TIME_SLOT_HOURS.get(row.get("departure_time", ""), ("09:00", "11:00"))[0],
+                    "arr_time": TIME_SLOT_HOURS.get(row.get("arrival_time", ""), ("12:00", "14:00"))[1],
+                    "duration_min": duration_min,
+                    "stops": 0 if "zero" in stops_str else (1 if "one" in stops_str else 2),
+                    "price_inr": price,
+                    "refundable": "Vistara" in airline or "Air India" in airline,
+                    "odd": per_route_count[route] % 2 == 1,
+                })
+    except OSError as exc:
+        logger.warning("Could not read flights CSV: %s", exc)
+    return tuple(rows)
+
+
 async def load_flights(
     db: AsyncSession,
     csv_path: str = "price_prediction_datatset/Clean_Dataset.csv",
-    limit: int = 500,
+    per_route: int = 12,
 ) -> int:
-    """Loads Kaggle flight fares dataset and guarantees rich demo routes."""
+    """Loads Kaggle fares for ALL Indian city pairs in the dataset (SIMULATED schedule),
+    capped per route and spread over tomorrow / day after, plus guaranteed demo flights."""
     tomorrow_str, day_after_str = get_demo_dates()
     demo_flights = build_guaranteed_demo_flights(tomorrow_str, day_after_str)
-
     for fl in demo_flights:
         await db.merge(fl)
-
-    loaded_count = len(demo_flights)
-
-    if os.path.exists(csv_path):
-        logger.info(f"Loading flight fares from {csv_path}")
-        try:
-            with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
-                reader = csv.DictReader(f)
-                count = 0
-                for row in reader:
-                    src = row.get("source_city", "").strip()
-                    dst = row.get("destination_city", "").strip()
-                    if src in CITY_TO_IATA and dst in CITY_TO_IATA and src != dst:
-                        from_iata = CITY_TO_IATA[src]
-                        to_iata = CITY_TO_IATA[dst]
-                        airline = row.get("airline", "Air India").replace("_", " ")
-                        stops_str = row.get("stops", "zero").lower()
-                        stops = 0 if "zero" in stops_str else (1 if "one" in stops_str else 2)
-                        dep_slot = row.get("departure_time", "Morning")
-                        arr_slot = row.get("arrival_time", "Afternoon")
-
-                        dep_time = TIME_SLOT_HOURS.get(dep_slot, ("09:00", "11:00"))[0]
-                        arr_time = TIME_SLOT_HOURS.get(arr_slot, ("12:00", "14:00"))[1]
-
-                        try:
-                            duration_hours = float(row.get("duration", 2.2))
-                            duration_min = int(duration_hours * 60)
-                            price = float(row.get("price", 5000))
-                        except ValueError:
-                            continue
-
-                        is_refundable = "Vistara" in airline or "Air India" in airline
-                        flight_id = f"fl_kg_{count}"
-
-                        flight = Flight(
-                            id=flight_id,
-                            airline=airline,
-                            from_iata=from_iata,
-                            to_iata=to_iata,
-                            dep_time=dep_time,
-                            arr_time=arr_time,
-                            duration_min=duration_min,
-                            stops=stops,
-                            price_inr=price,
-                            refundable=is_refundable,
-                            on_time_pct=88.0 + (count % 10),
-                            date=tomorrow_str,
-                        )
-                        await db.merge(flight)
-                        count += 1
-                        loaded_count += 1
-                        if count >= limit:
-                            break
-        except Exception as e:
-            logger.warning(f"Error parsing flights CSV: {e}")
-
+    rows = _parse_csv(csv_path, per_route)
+    for i, r in enumerate(rows):
+        fields = {k: v for k, v in r.items() if k != "odd"}
+        await db.merge(Flight(id=f"fl_kg_{i}", on_time_pct=88.0 + (i % 10),
+                              date=tomorrow_str if r["odd"] else day_after_str, **fields))
     await db.commit()
-    logger.info(f"Loaded total {loaded_count} flights into database")
-    return loaded_count
+    total = len(demo_flights) + len(rows)
+    logger.info("Loaded %s flights (SIMULATED schedule)", total)
+    return total

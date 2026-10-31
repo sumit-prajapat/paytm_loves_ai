@@ -1,116 +1,34 @@
-# Saarthi Backend: Demo Beats & cURL Examples
+# Saarthi on-demand API: curl examples (SIMULATED DATA)
 
-This document provides ready-to-run copy-paste commands for every demo beat in the 3-minute hackathon pitch.
-
----
-
-## Beat 1: Proactive Zero-Ticket Settlement Short (Soundbox Speaks First)
-**Story:** An expected settlement is short by ₹1,800. Saarthi detects it before Ramesh notices, diagnoses ₹1,200 refund + ₹600 fee, speaks it via Soundbox, and keeps ticket count at zero.
+Every call below is a USER trigger (R11). Base URL `http://localhost:8000/api/v1`.
 
 ```bash
-curl -X POST "http://localhost:8000/events/inject" \
-     -H "Content-Type: application/json" \
-     -d '{"type": "settlement_short", "merchant_id": "m_ramesh"}'
-```
+B=http://localhost:8000/api/v1
+TOKEN=$(curl -s -X POST $B/auth/demo-token -H 'Content-Type: application/json' -d '{"role":"merchant"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+OPS=$(curl -s -X POST $B/auth/demo-token -H 'Content-Type: application/json' -d '{"role":"ops_agent"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
----
+# Ramesh presses "Check my settlement" (Tier 0, no LLM)
+curl -s -X POST $B/checkups -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"scope":"settlement"}'
 
-## Beat 2: Morning Business Pulse (20-Second Audio Overview)
-**Story:** Ramesh clicks or opens his store dashboard to hear his morning briefing.
+# Same question by chat (Hinglish)
+curl -s -X POST $B/chat -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"message":"Aaj ka settlement kam kyun aaya?"}'
 
-```bash
-curl -X GET "http://localhost:8000/pulse/m_ramesh?audio=true"
-```
+# Soundbox button press -> spoken answer (audio_url) + push on /ws/merchant/m_ramesh
+curl -s -X POST $B/soundbox/soundbox_ramesh_01/ask -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"button":"settlement"}'
 
----
+# "Raise an issue": check-up first, ticket only if unresolved or insist=true
+curl -s -X POST $B/issues -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"scope":"all","insist":false}'
 
-## Beat 3: Consent-First Loan Offer & EMI Query
-**Story:** After resolution, Ramesh asks: "50,000 chahiye, EMI kitna?"
-Saarthi calculates EMI mathematically (₹4,489/month at 14%) and logs the request as `awaiting_approval` for human verification.
+# Morning pulse / festival advice (on request only)
+curl -s "$B/pulse/m_ramesh?audio=true" -H "Authorization: Bearer $TOKEN"
+curl -s "$B/advice/m_ramesh?topic=festival" -H "Authorization: Bearer $TOKEN"
 
-```bash
-curl -X POST "http://localhost:8000/chat" \
-     -H "Content-Type: application/json" \
-     -d '{"user_id": "m_ramesh", "role": "merchant", "message": "Mujhe 50000 ka loan chahiye, EMI kitna banega?"}'
-```
+# Demo: set up the world (data only), then simulate the user's button press
+curl -s -X POST $B/demo/scenario/soundbox_offline -H "Authorization: Bearer $OPS"
+curl -s -X POST $B/demo/trigger/soundbox_offline -H "Authorization: Bearer $OPS" -H 'Content-Type: application/json' -d '{"channel":"soundbox"}'
+curl -s -X POST $B/demo/reset -H "Authorization: Bearer $OPS"
 
-If Ramesh declines ("Nahi chahiye"), Saarthi immediately ceases:
-```bash
-curl -X POST "http://localhost:8000/chat" \
-     -H "Content-Type: application/json" \
-     -d '{"user_id": "m_ramesh", "role": "merchant", "message": "Nahi chahiye abhi, mat do"}'
-```
-
----
-
-## Beat 4: Multi-Agent Travel Concierge (Consumer Side)
-**Story:** Arjun says: "Delhi se Mumbai kal shaam ka flight, sasta aur jaldi".
-Planner builds roadmap -> Search queries flights in parallel -> Ranker scores options -> Handoff prepares Review & Pay link (AI never pays).
-
-```bash
-curl -X POST "http://localhost:8000/chat" \
-     -H "Content-Type: application/json" \
-     -d '{"user_id": "c_arjun", "role": "traveller", "message": "Delhi se Mumbai kal shaam ka flight, sasta aur jaldi"}'
-```
-
----
-
-## Beat 5: Judge-Triggered Chaos: Risky Chargeback Escalation
-**Story:** Judge injects a ₹6,500 dispute. Guardian detects financial impact > ₹5,000 threshold and escalates to human console with complete context.
-
-```bash
-curl -X POST "http://localhost:8000/events/inject" \
-     -H "Content-Type: application/json" \
-     -d '{"type": "chargeback_dispute", "merchant_id": "m_disputed"}'
-```
-
-Inspect the Escalation Queue:
-```bash
-curl -X GET "http://localhost:8000/escalations"
-```
-
----
-
-## Beat 6: Playbook Learning Loop
-**Story:** Human supervisor resolves the escalation and clicks "Save as playbook". The next similar case auto-resolves with 0 tickets!
-
-```bash
-curl -X POST "http://localhost:8000/escalations/tkt_esc_7701/resolve" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "resolution": "Verified store invoice and CCTV log.",
-       "operator_id": "supervisor_priya",
-       "save_as_playbook": true,
-       "issue_type": "chargeback_dispute",
-       "root_cause": "verified_store_slip"
-     }'
-```
-
-Check matched playbooks:
-```bash
-curl -X GET "http://localhost:8000/playbooks/match?issue_type=chargeback_dispute"
-```
-
----
-
-## Beat 7: Global Kill Switch (Pause Autonomy)
-**Story:** Operator engages the master kill switch to halt all autonomous mutations.
-
-```bash
-# Check current state
-curl -X GET "http://localhost:8000/control/state"
-
-# Engage Kill Switch
-curl -X POST "http://localhost:8000/control/kill-switch" \
-     -H "Content-Type: application/json" \
-     -d '{"active": true, "reason": "Judge emergency safety drill", "actor": "demo_lead"}'
-```
-
----
-
-## Beat 8: Live Operational Metrics Dashboard
-**Story:** Show measurable Track 3 outcomes: tickets prevented, deflection rate, support costs saved in INR.
-
-```bash
-curl -X GET "http://localhost:8000/metrics"
+# Ops console
+curl -s $B/escalations -H "Authorization: Bearer $OPS"
+curl -s $B/metrics -H "Authorization: Bearer $OPS"
 ```

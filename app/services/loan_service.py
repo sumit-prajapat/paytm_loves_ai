@@ -8,6 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import LoanProfile, LoanRequest
 
 
+class InvalidLoanTransition(Exception):
+    def __init__(self, current: str, target: str) -> None:
+        super().__init__(f"Cannot move loan request from '{current}' to '{target}'")
+        self.current = current
+        self.target = target
+
+
 class LoanService:
     """Deterministic loan calculations and consent-first workflow management."""
 
@@ -96,24 +103,24 @@ class LoanService:
             approved_by=None,
         )
         db.add(loan_req)
-        await db.commit()
-        await db.refresh(loan_req)
+        await db.flush()
         return loan_req
 
     @staticmethod
     async def update_status(db: AsyncSession, request_id: str, new_status: str, operator_id: str) -> LoanRequest | None:
-        """Approves or rejects a loan request from human console."""
+        """Human console decision. Only awaiting_approval -> approved | rejected is allowed."""
         result = await db.execute(
             select(LoanRequest).where(LoanRequest.id == request_id)
         )
         loan_req = result.scalar_one_or_none()
         if not loan_req:
             return None
+        if loan_req.status != "awaiting_approval" or new_status not in ("approved", "rejected"):
+            raise InvalidLoanTransition(loan_req.status, new_status)
 
         loan_req.status = new_status
         loan_req.approved_by = operator_id
-        await db.commit()
-        await db.refresh(loan_req)
+        await db.flush()
         return loan_req
 
 

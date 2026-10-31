@@ -1,3 +1,7 @@
+"""Playbook learning: a human-resolved escalation becomes a rule so the next similar case
+auto-resolves. Playbook actions are limited to a SAFE set that never moves money (R3)."""
+from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -6,45 +10,45 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Playbook
 
+# action -> (issue types it may be used for, template key used to explain it)
+SAFE_PLAYBOOK_ACTIONS: dict[str, tuple[set[str], str | None]] = {
+    "explain_breakdown": ({"settlement_short"}, None),  # None = the finding's own explanation
+    "guide_charger": ({"soundbox_offline"}, None),
+    "guide_restart": ({"soundbox_offline"}, None),
+    "request_evidence_upload": ({"chargeback_dispute"}, "dispute.playbook_evidence"),
+}
+DEFAULT_ACTION_FOR_ISSUE = {
+    "chargeback_dispute": "request_evidence_upload",
+    "settlement_short": "explain_breakdown",
+    "soundbox_offline": "guide_charger",
+}
+
+
+def match_score(playbook: Playbook, conditions: dict[str, Any]) -> float:
+    pb_conditions = playbook.conditions_json if isinstance(playbook.conditions_json, dict) else {}
+    if not pb_conditions:
+        return 0.8  # issue type only: below the default auto-resolve threshold
+    matched = sum(1 for k, v in pb_conditions.items() if conditions.get(k) == v)
+    return round(0.75 + 0.25 * matched / len(pb_conditions), 3)
+
 
 class PlaybookService:
-    """Manages the continuous learning loop: converts resolved escalations into playbooks
-
-    so repeat issues auto-resolve with 0 tickets.
-    """
-
     @staticmethod
     async def match_playbook(
-        db: AsyncSession,
-        issue_type: str,
-        conditions: dict[str, Any] | None = None,
+        db: AsyncSession, issue_type: str, conditions: dict[str, Any] | None = None
     ) -> tuple[Playbook | None, float]:
-        """Looks up stored playbook by issue_type.
+        candidates = (await db.execute(select(Playbook).where(Playbook.issue_type == issue_type))).scalars().all()
+        best, best_score = None, 0.0
+        for pb in candidates:
+            score = match_score(pb, conditions or {})
+            if score > best_score or (score == best_score and best and pb.times_used > best.times_used):
+                best, best_score = pb, score
+        return best, best_score
 
-        Returns (playbook, match_score). A match score >= 0.8 allows auto-resolution.
-        """
-        stmt = select(Playbook).where(Playbook.issue_type == issue_type)
-        res = await db.execute(stmt)
-        candidates = list(res.scalars().all())
-
-        if not candidates:
-            return None, 0.0
-
-        # Exact issue type matched
-        best_match = candidates[0]
-        score = 0.90  # High confidence match
-
-        # If conditions provided, verify match
-        if conditions and best_match.conditions_json:
-            matches = 0
-            total = len(best_match.conditions_json)
-            for k, v in best_match.conditions_json.items():
-                if conditions.get(k) == v:
-                    matches += 1
-            if total > 0:
-                score = 0.70 + (0.28 * (matches / total))
-
-        return best_match, round(score, 2)
+    @staticmethod
+    def is_safe(playbook: Playbook) -> bool:
+        spec = SAFE_PLAYBOOK_ACTIONS.get(playbook.action)
+        return bool(spec and playbook.issue_type in spec[0])
 
     @staticmethod
     async def create_playbook(
@@ -55,10 +59,10 @@ class PlaybookService:
         conditions: dict[str, Any] | None = None,
         created_from_case: str | None = None,
     ) -> Playbook:
-        """Stores a newly learned playbook rule from a human-resolved escalation."""
-        playbook_id = f"pb_{uuid.uuid4().hex[:8]}"
+        if action not in SAFE_PLAYBOOK_ACTIONS or issue_type not in SAFE_PLAYBOOK_ACTIONS[action][0]:
+            raise ValueError(f"Action '{action}' is not a safe playbook action for '{issue_type}'")
         pb = Playbook(
-            id=playbook_id,
+            id=f"pb_{uuid.uuid4().hex[:8]}",
             issue_type=issue_type,
             root_cause=root_cause,
             action=action,
@@ -67,18 +71,13 @@ class PlaybookService:
             times_used=0,
         )
         db.add(pb)
-        await db.commit()
-        await db.refresh(pb)
+        await db.flush()
         return pb
 
     @staticmethod
-    async def increment_usage(db: AsyncSession, playbook_id: str) -> None:
-        stmt = select(Playbook).where(Playbook.id == playbook_id)
-        res = await db.execute(stmt)
-        pb = res.scalar_one_or_none()
-        if pb:
-            pb.times_used += 1
-            await db.commit()
+    async def increment_usage(db: AsyncSession, playbook: Playbook) -> None:
+        playbook.times_used += 1
+        await db.flush()
 
 
 playbook_service = PlaybookService()

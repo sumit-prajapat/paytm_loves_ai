@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -68,6 +69,7 @@ class Customer(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (Index("ix_txn_merchant_status_ts", "merchant_id", "status", "ts"),)
 
     txn_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     merchant_id: Mapped[str] = mapped_column(
@@ -88,6 +90,7 @@ class Transaction(Base):
 
 class Settlement(Base):
     __tablename__ = "settlements"
+    __table_args__ = (Index("ix_settlement_merchant_date", "merchant_id", "date"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     merchant_id: Mapped[str] = mapped_column(
@@ -127,7 +130,7 @@ class Refund(Base):
         String(64), ForeignKey("transactions.txn_id"), nullable=False, index=True
     )
     status: Mapped[str] = mapped_column(
-        String(32), nullable=False
+        String(32), nullable=False, index=True
     )  # pending | processed | failed | overdue
     initiated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=get_utc_now
@@ -149,7 +152,7 @@ class Device(Base):
     battery: Mapped[int] = mapped_column(Integer, default=100)
     network: Mapped[str] = mapped_column(String(32), default="4G")
     last_seen: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=get_utc_now
+        DateTime, default=get_utc_now, index=True
     )
     firmware: Mapped[str] = mapped_column(String(32), default="v2.4.1")
 
@@ -193,6 +196,12 @@ class Ticket(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=get_utc_now
     )
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    checkup_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # Full escalation dossier so humans never ask the merchant to repeat the story
+    details_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSON, nullable=True)
+    resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     merchant: Mapped["Merchant"] = relationship(back_populates="tickets")
 
@@ -274,6 +283,7 @@ class Playbook(Base):
         String(64), nullable=True
     )
     times_used: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=get_utc_now)
 
 
 class AgentRun(Base):
@@ -290,6 +300,11 @@ class AgentRun(Base):
         JSON, nullable=True
     )
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    # R12 cost accounting (per step; the captain "finalize" step carries request totals)
+    tier: Mapped[int] = mapped_column(Integer, default=0)
+    tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
     ts: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=get_utc_now, index=True
     )
@@ -361,6 +376,8 @@ class Flight(Base):
     on_time_pct: Mapped[float] = mapped_column(Float, default=90.0)
     date: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
 
+    __table_args__ = (Index("ix_flight_route_date", "from_iata", "to_iata", "date"),)
+
 
 class Airport(Base):
     __tablename__ = "airports"
@@ -391,3 +408,104 @@ class EvalCase(Base):
         String(32), nullable=False
     )  # auto_resolve | escalate | ask_clarification | refuse
     scenario: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# On-demand (R11) and cost-aware (R12) tables
+# ---------------------------------------------------------------------------
+class Checkup(Base):
+    """One user-triggered check-up for ONE merchant. Doubles as the result cache (R12)."""
+
+    __tablename__ = "checkups"
+    __table_args__ = (
+        Index("ix_checkup_merchant_scope_created", "merchant_id", "scope", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(String(64), ForeignKey("merchants.id"), nullable=False)
+    scope: Mapped[str] = mapped_column(String(32), nullable=False)  # settlement|device|payments|refunds|all
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)  # app|chat|voice|soundbox
+    language: Mapped[str] = mapped_column(String(16), default="hi")
+    triggered_by: Mapped[str] = mapped_column(String(64), nullable=False)  # actor user id
+    on_behalf: Mapped[bool] = mapped_column(Boolean, default=False)  # ops agent acting for merchant
+    case_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)  # resolved|no_issue|escalated
+    findings_json: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    reply_text: Mapped[str] = mapped_column(Text, default="")
+    ticket_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tier: Mapped[int] = mapped_column(Integer, default=0)
+    llm_calls: Mapped[int] = mapped_column(Integer, default=0)
+    tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    duration_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    cache_valid: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=get_utc_now, index=True)
+
+
+class UsageEvent(Base):
+    """Ledger of requests and LLM calls used for quotas, budgets and cost metrics (R12).
+
+    Kept in the DB (not process memory) so quotas hold across stateless workers.
+    """
+
+    __tablename__ = "usage_events"
+    __table_args__ = (Index("ix_usage_user_kind_ts", "user_id", "kind", "ts"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)  # subject charged
+    actor_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)  # request|llm_call|llm_cache_hit|checkup_cache_hit
+    request_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    channel: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tier: Mapped[int] = mapped_column(Integer, default=0)
+    tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    duration_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    outcome: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ts: Mapped[datetime.datetime] = mapped_column(DateTime, default=get_utc_now, index=True)
+
+
+class OfferConsent(Base):
+    """Persisted consent state so a declined offer is never shown again (R6)."""
+
+    __tablename__ = "offer_consents"
+
+    merchant_id: Mapped[str] = mapped_column(String(64), ForeignKey("merchants.id"), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), default="none")  # none|offered|declined|accepted
+    offers_shown: Mapped[int] = mapped_column(Integer, default=0)
+    last_offered_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    declined_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=get_utc_now)
+
+
+class ConversationState(Base):
+    """Short-lived dialogue state (slots, pending question) kept in the DB for stateless workers."""
+
+    __tablename__ = "conversation_states"
+
+    subject_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    data_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=get_utc_now)
+
+
+class TravelBooking(Base):
+    """Simulated bookings so a traveller can ask for status ON REQUEST (no watchers)."""
+
+    __tablename__ = "travel_bookings"
+
+    booking_ref: Mapped[str] = mapped_column(String(32), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id"), nullable=False, index=True
+    )
+    flight_no: Mapped[str] = mapped_column(String(16), nullable=False)
+    airline: Mapped[str] = mapped_column(String(64), nullable=False)
+    from_iata: Mapped[str] = mapped_column(String(8), nullable=False)
+    to_iata: Mapped[str] = mapped_column(String(8), nullable=False)
+    date: Mapped[str] = mapped_column(String(32), nullable=False)
+    dep_time: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="on_time")  # on_time|delayed|cancelled
+    delay_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    terminal: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    gate: Mapped[str | None] = mapped_column(String(8), nullable=True)

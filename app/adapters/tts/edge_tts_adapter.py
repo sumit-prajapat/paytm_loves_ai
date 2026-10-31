@@ -1,11 +1,8 @@
 import io
-import logging
 
 import edge_tts
 
 from app.adapters.tts.base import BaseTTSAdapter
-
-logger = logging.getLogger(__name__)
 
 VOICE_MAP = {
     "hi": "hi-IN-MadhurNeural",
@@ -13,25 +10,21 @@ VOICE_MAP = {
     "en": "en-IN-PrabhatNeural",
     "mr": "mr-IN-AarohiNeural",
     "ta": "ta-IN-ValluvarNeural",
+    "bn": "bn-IN-BashkarNeural",
 }
 
 
 class EdgeTTSAdapter(BaseTTSAdapter):
-    """High quality neural Indic Text-to-Speech using edge-tts without API keys."""
+    """Neural Indic TTS via edge-tts (needs internet, no key). Timeout applied by the caller."""
 
-    async def synthesize(
-        self,
-        text: str,
-        language: str = "hi",
-        slow: bool = False,
-    ) -> bytes:
-        voice = VOICE_MAP.get(language.lower(), "hi-IN-MadhurNeural")
-        rate = "-25%" if slow else "+0%"
+    provider = "edge-tts"
+    content_type = "audio/mpeg"
 
-        communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate)
+    async def synthesize(self, text: str, language: str = "hi", slow: bool = False) -> bytes:
+        voice = VOICE_MAP.get(language.lower(), VOICE_MAP["hi"])
+        communicate = edge_tts.Communicate(text=text, voice=voice, rate="-25%" if slow else "+0%")
         buffer = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 buffer.write(chunk["data"])
-
         return buffer.getvalue()

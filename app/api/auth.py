@@ -1,14 +1,22 @@
 from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.deps import get_current_user
-from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password
-from app.db.models import AuditLog, User
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    verify_password,
+)
+from app.db.models import User
 from app.db.session import get_db
+from app.services.audit import record_audit_log
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -51,16 +59,10 @@ async def login(
     res = await db.execute(stmt)
     user = res.scalar_one_or_none()
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    if not user or not await run_in_threadpool(verify_password, payload.password, user.password_hash):
         # Record security event for failed login attempt
-        failed_audit = AuditLog(
-            case_id="AUTH_FAIL",
-            actor=payload.username,
-            action="login_failure",
-            detail={"reason": "invalid_credentials", "username": payload.username},
-            ip_address=client_ip,
-        )
-        db.add(failed_audit)
+        await record_audit_log(db, case_id="AUTH_FAIL", actor=payload.username[:64], action="login_failure",
+                               detail={"reason": "invalid_credentials"}, ip_address=client_ip)
         await db.commit()
 
         raise HTTPException(
@@ -85,14 +87,8 @@ async def login(
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
 
-    success_audit = AuditLog(
-        case_id="AUTH_SUCCESS",
-        actor=user.username,
-        action="login_success",
-        detail={"role": user.role, "user_id": user.id},
-        ip_address=client_ip,
-    )
-    db.add(success_audit)
+    await record_audit_log(db, case_id="AUTH_SUCCESS", actor=user.username, action="login_success",
+                           detail={"role": user.role, "user_id": user.id}, ip_address=client_ip)
     await db.commit()
 
     return TokenResponse(
@@ -129,18 +125,19 @@ async def demo_token(
         "admin": "admin_user",
     }
 
-    if payload.role == "merchant" and payload.target_id == "m_sunita":
-        target_username = "merchant_sunita"
-    else:
-        target_username = username_lookup.get(payload.role)
-
-    if not target_username:
+    if payload.role not in username_lookup:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid demo role '{payload.role}'. Choose merchant, traveller, ops_agent, admin.",
         )
+    if payload.target_id and payload.role == "merchant":
+        stmt = select(User).where(User.role == "merchant", User.merchant_id == payload.target_id)
+    elif payload.target_id and payload.role == "traveller":
+        stmt = select(User).where(User.role == "traveller", User.customer_id == payload.target_id)
+    else:
+        stmt = select(User).where(User.username == username_lookup[payload.role])
+    target_username = payload.target_id or username_lookup[payload.role]
 
-    stmt = select(User).where(User.username == target_username)
     res = await db.execute(stmt)
     user = res.scalar_one_or_none()
 

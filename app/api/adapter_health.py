@@ -1,35 +1,31 @@
 from fastapi import APIRouter
 
 from app.config import get_settings
+from app.llm.gateway import llm_gateway
+from app.services.voice_service import get_stt, get_tts
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
 
 @router.get("/adapters")
 async def get_adapter_health():
-    """Returns active adapter status and indicates whether real or fallback implementations are active."""
-    settings = get_settings()
-
-    llm_status = "real (Gemini)" if settings.GEMINI_API_KEY else "fallback (MockLLM - Offline Deterministic)"
-    stt_status = "real (Sarvam AI)" if settings.SARVAM_API_KEY else "fallback (MockSTT / Phrase Bank)"
-    tts_status = "real (Microsoft Edge TTS Neural hi-IN)" if settings.TTS_PROVIDER == "edge-tts" else "fallback (MockTTS)"
-    flights_status = "real/seeded (SeededFlightsProvider - 121 Indian airports, Kaggle fares)"
-    payments_status = "mock (MockPaymentLink - Safe Human-in-the-Loop Review & Pay)"
-    weather_status = "real (Open-Meteo API / Offline Fallback)"
-    holidays_status = "real (National Indian Festivals & Dates)"
-    notify_status = "real (In-App WebSocket Bus & Soundbox Simulator)"
-
+    """Which adapters are configured (real vs offline fallback). Does not call providers."""
+    s = get_settings()
+    llm = llm_gateway.adapter
     return {
-        "demo_mode": settings.DEMO_MODE,
+        "demo_mode": s.DEMO_MODE,
         "adapters": {
-            "llm": {"provider": settings.LLM_PROVIDER, "status": llm_status},
-            "stt": {"provider": settings.STT_PROVIDER, "status": stt_status},
-            "tts": {"provider": settings.TTS_PROVIDER, "status": tts_status},
-            "flights": {"provider": settings.FLIGHTS_PROVIDER, "status": flights_status},
-            "payments": {"provider": settings.PAYMENTS_PROVIDER, "status": payments_status},
-            "weather": {"provider": "open-meteo", "status": weather_status},
-            "holidays": {"provider": "built-in/calendarific", "status": holidays_status},
-            "notifications": {"provider": settings.NOTIFY_PROVIDER, "status": notify_status},
+            "llm": {"provider": llm.provider,
+                    "models": {"tier1": s.GEMINI_MODEL_TIER1, "tier2": s.GEMINI_MODEL_TIER2}
+                    if llm.provider == "gemini" else None,
+                    "real": llm.provider != "mock",
+                    "provider_errors_since_start": llm_gateway.stats.get("provider_errors", 0)},
+            "stt": {"provider": get_stt().provider, "model": s.SARVAM_STT_MODEL, "real": get_stt().provider != "mock",
+                    "offline_fallback": "demo clips by filename, otherwise transcript_unavailable"},
+            "tts": {"provider": get_tts().provider, "real": get_tts().provider != "mock",
+                    "offline_fallback": "silent WAV"},
+            "flights": {"provider": "seeded_db", "real": False, "note": "SIMULATED schedule from Kaggle fares"},
+            "payments": {"provider": "mock_checkout_link", "real": False},
+            "notifications": {"provider": "in_app_websocket", "real": True},
         },
-        "all_systems_operational": True,
     }

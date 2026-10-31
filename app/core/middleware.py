@@ -2,11 +2,13 @@ import logging
 import time
 import uuid
 from collections import defaultdict
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
+from app.core.security import decode_token
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -14,7 +16,7 @@ settings = get_settings()
 # In-memory rate limiting tracker: (ip, rate_category) -> list of timestamps
 _RATE_LIMIT_BUCKETS: dict[tuple[str, str], list[float]] = defaultdict(list)
 
-STRICT_PATHS = ("/auth/login", "/chat", "/voice", "/events/inject")
+STRICT_PATHS = ("/api/v1/auth/login", "/api/v1/chat", "/api/v1/voice", "/api/v1/checkups", "/api/v1/soundbox", "/api/v1/issues")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -51,10 +53,18 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip rate limit on open docs/openapi routes in demo mode
         path = request.url.path
-        if path in ("/docs", "/openapi.json", "/redoc", "/health", "/ready"):
+        if path in ("/docs", "/openapi.json", "/redoc", "/health", "/health/adapters") or path.startswith("/api/v1/audio/"):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "unknown"
+        # Key by authenticated user when a valid token is present (users behind one NAT /
+        # demo laptop do not share a bucket); fall back to the client IP.
+        identity = f"ip:{client_ip}"
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            payload = decode_token(auth[7:].strip())
+            if payload and payload.get("sub"):
+                identity = f"user:{payload['sub']}"
         is_strict = any(path.startswith(sp) for sp in STRICT_PATHS)
         category = "strict" if is_strict else "standard"
         max_requests = settings.CHAT_RATE_LIMIT_PER_MINUTE if is_strict else settings.RATE_LIMIT_PER_MINUTE
@@ -62,7 +72,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         now = time.time()
         window_start = now - 60.0
 
-        key = (client_ip, category)
+        key = (identity, category)
         # Prune old timestamps
         timestamps = [t for t in _RATE_LIMIT_BUCKETS[key] if t > window_start]
 

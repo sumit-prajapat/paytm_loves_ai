@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.adapters.notify.in_app import notification_bus
 from app.core.security import decode_token

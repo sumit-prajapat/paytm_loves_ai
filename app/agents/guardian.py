@@ -1,108 +1,81 @@
+"""Guardian (R2): reviews EVERY proposed action before execution by action CLASS.
+
+- R3: payment, loan approval, refund issuance, booking confirmation -> always BLOCK.
+- R5: kill switch -> autonomous mutations ESCALATE; reads/explanations/guidance continue.
+- Confidence thresholds come from config (AUTO_RESOLVE / CLARIFY).
+"""
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import BaseAgent
 from app.config import get_settings
-from app.schemas.envelope import AgentEnvelope
 from app.services.kill_switch import kill_switch_service
+
+FORBIDDEN_ACTIONS = {"payment", "loan_approval", "refund_issue", "booking_confirm"}
+AUTONOMOUS_MUTATIONS = {"playbook_resolution", "create_loan_request"}
+CONFIDENCE_GATED = {"explain", "guide", "playbook_resolution"}
+ALWAYS_ALLOWED = {"read", "notify", "create_ticket", "handoff_payment_link", "refuse"}
+
+
+@dataclass
+class GuardianDecision:
+    decision: str  # allow | block | escalate | needs_input
+    reason: str
+    action_class: str
+
+    @property
+    def allowed(self) -> bool:
+        return self.decision == "allow"
 
 
 class GuardianAgent(BaseAgent):
-    """Policy & safety enforcement engine reviewing every proposed action before execution."""
-
     def __init__(self) -> None:
         super().__init__(name="guardian")
-        self.settings = get_settings()
 
-    async def process(
-        self,
-        case_id: str,
-        input_data: dict[str, Any],
-        db: AsyncSession,
-    ) -> AgentEnvelope:
-        start_time = time.time()
-        proposed_action = input_data.get("action", "unknown")
-        confidence = float(input_data.get("confidence", 1.0))
-        financial_impact = float(input_data.get("financial_impact", 0.0))
-        is_unsafe = bool(input_data.get("is_unsafe", False))
-        intent = input_data.get("intent", "")
-        language = input_data.get("language", "hi")
+    def evaluate(
+        self, action_class: str, confidence: float = 1.0, financial_impact: float = 0.0,
+        money_effect: bool = False,
+    ) -> GuardianDecision:
+        s = get_settings()
+        if action_class in FORBIDDEN_ACTIONS:
+            return GuardianDecision("block", "R3: payments, loan approvals, refund issuance and booking "
+                                             "confirmation are human-only", action_class)
+        if action_class in AUTONOMOUS_MUTATIONS and kill_switch_service.is_active():
+            return GuardianDecision("escalate", "R5: kill switch engaged; autonomous actions go to a human",
+                                    action_class)
+        if money_effect and financial_impact >= s.FINANCIAL_IMPACT_THRESHOLD_INR:
+            return GuardianDecision("escalate", f"Financial impact {financial_impact} at or above threshold "
+                                                f"{s.FINANCIAL_IMPACT_THRESHOLD_INR}", action_class)
+        if action_class in CONFIDENCE_GATED:
+            if confidence < s.CLARIFY_CONFIDENCE_THRESHOLD:
+                return GuardianDecision("escalate", f"Confidence {confidence:.2f} below "
+                                                    f"{s.CLARIFY_CONFIDENCE_THRESHOLD}", action_class)
+            if confidence < s.AUTO_RESOLVE_CONFIDENCE_THRESHOLD:
+                return GuardianDecision("needs_input", f"Confidence {confidence:.2f} below "
+                                                       f"{s.AUTO_RESOLVE_CONFIDENCE_THRESHOLD}", action_class)
+            return GuardianDecision("allow", "Policy checks passed", action_class)
+        if action_class in ALWAYS_ALLOWED or action_class in AUTONOMOUS_MUTATIONS:
+            return GuardianDecision("allow", "Policy checks passed", action_class)
+        return GuardianDecision("block", f"Unknown action class '{action_class}' (deny by default)", action_class)
 
-        decision = "allow"
-        reason = "All policy safety checks passed"
-        next_agent = "action"
-        status = "done"
-
-        # Rule R7: Unsafe PIN / OTP requests
-        if is_unsafe or any(k in intent.lower() for k in ["pin", "otp", "password", "unsafe"]):
-            decision = "block"
-            status = "blocked"
-            next_agent = "human"
-            reason = "Strict Security Policy: User entered or asked for PIN/OTP credentials."
-
-        # Rule R5: Global Kill Switch
-        elif kill_switch_service.is_active():
-            decision = "escalate"
-            status = "escalate"
-            next_agent = "handoff"
-            reason = "Global Kill Switch is ENGAGED. Autonomous mutations paused; escalated to human."
-
-        # Rule R3: Payments, loan approvals, refund issuance are strictly human-only
-        elif any(act in proposed_action.lower() for act in ["pay", "confirm_booking", "approve_loan", "issue_refund"]):
-            decision = "escalate"
-            status = "escalate"
-            next_agent = "handoff"
-            reason = "Human-in-the-Loop Rule R3: Irreversible financial movement requires human confirmation."
-
-        # High financial impact threshold check (> 5,000 INR default)
-        elif financial_impact >= self.settings.FINANCIAL_IMPACT_THRESHOLD_INR:
-            decision = "escalate"
-            status = "escalate"
-            next_agent = "handoff"
-            reason = f"Financial impact ₹{financial_impact:,.2f} exceeds safety threshold of ₹{self.settings.FINANCIAL_IMPACT_THRESHOLD_INR:,.2f}."
-
-        # Low confidence (< 0.60)
-        elif confidence < self.settings.CLARIFY_CONFIDENCE_THRESHOLD:
-            decision = "escalate"
-            status = "escalate"
-            next_agent = "handoff"
-            reason = f"Confidence score {confidence:.2f} is below minimum autonomy threshold ({self.settings.CLARIFY_CONFIDENCE_THRESHOLD})."
-
-        # Medium confidence (0.60 to 0.85) -> Clarification needed
-        elif confidence < self.settings.AUTO_RESOLVE_CONFIDENCE_THRESHOLD:
-            decision = "needs_clarification"
-            status = "needs_input"
-            next_agent = "listener"
-            reason = f"Confidence {confidence:.2f} requires ONE clarifying question before proceeding."
-
-        latency_ms = (time.time() - start_time) * 1000.0
-
+    async def review(
+        self, case_id: str, db: AsyncSession, *, action_class: str, subject: str,
+        confidence: float = 1.0, financial_impact: float = 0.0, money_effect: bool = False,
+        detail: dict[str, Any] | None = None,
+    ) -> GuardianDecision:
+        start = time.perf_counter()
+        decision = self.evaluate(action_class, confidence, financial_impact, money_effect)
         await self.emit_step(
-            case_id=case_id,
-            tool="evaluate_action_policy",
-            input_data={"proposed_action": proposed_action, "financial_impact": financial_impact, "confidence": confidence},
-            output_data={"decision": decision, "reason": reason, "status": status},
-            confidence=1.0,
-            db=db,
+            case_id=case_id, tool="evaluate_action_policy",
+            input_data={"action_class": action_class, "subject": subject, "confidence": confidence,
+                        "financial_impact": financial_impact, **(detail or {})},
+            output_data={"decision": decision.decision, "reason": decision.reason},
+            confidence=1.0, db=db, latency_ms=(time.perf_counter() - start) * 1000,
         )
-
-        return AgentEnvelope(
-            agent=self.name,
-            status=status,
-            result={
-                "decision": decision,
-                "reason": reason,
-                "proposed_action": proposed_action,
-                "financial_impact": financial_impact,
-            },
-            confidence=confidence,
-            evidence=["policy_rules_engine"],
-            next=next_agent,
-            language=language,
-            latency_ms=latency_ms,
-        )
+        return decision
 
 
 guardian_agent = GuardianAgent()

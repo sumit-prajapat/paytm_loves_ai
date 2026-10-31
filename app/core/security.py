@@ -3,8 +3,10 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
 import bcrypt
 import jwt
+
 from app.config import get_settings
 
 settings = get_settings()
@@ -122,7 +124,53 @@ INJECTION_PATTERNS = [
     re.compile(r"(?i)\b(jailbreak|prompt\s*injection)\b"),
     re.compile(r"(?i)\b(show|dump|list|leak)\b.*\b(all\s*users|passwords|database|secrets|api\s*keys)\b"),
     re.compile(r"(?i)\b(drop\s*table|select\s*\*|union\s*select|insert\s*into)\b"),
+    # Hinglish / Hindi variants
+    re.compile(r"(?i)\b(pichhle|pichle|purane|saare|sabhi)\b.*\b(nirdesh|instructions?|rules|niyam)\b.*\b(bhool|bhul|ignore|chhod)"),
+    re.compile(r"(?i)\b(admin|system|developer)\s+(ban\s+jao|bano|ban\s+ja)\b"),
+    re.compile(r"(निर्देश|नियम|प्रॉम्प्ट|प्रोम्प्ट).*(भूल|भुला|अनदेखा|नजरअंदाज|नज़रअंदाज़)"),
+    re.compile(r"(भूल|भुला|अनदेखा).*(निर्देश|नियम|प्रॉम्प्ट)"),
+    re.compile(r"(एडमिन|admin|सिस्टम)\s*बन\s*(जाओ|जाइए|जा)"),
+    re.compile(r"(सिस्टम\s*प्रॉम्प्ट|सिस्टम\s*निर्देश)"),
 ]
+
+# ---------------------------------------------------------------------------
+# Sensitive credential detection (Rule R7): never accept PIN / OTP / password / card
+# ---------------------------------------------------------------------------
+_CREDENTIAL_WORDS = re.compile(
+    r"(?i)(?<![a-z])(otp|upi\s*-?\s*pin|atm\s*-?\s*pin|m-?pin|pin(?!\s*-?\s*code)(?!code)|password|"
+    r"passcode|cvv|cvc)(?![a-z])|ओटीपी|पासवर्ड|सीवीवी|पिन(?!\s*कोड)"
+)
+_CODE_CONTEXT = re.compile(r"(?i)(?<![a-z])(code|otp|verify|verification|kod)(?![a-z])|कोड")
+_BARE_CODE = re.compile(r"(?<![\d₹,.])\d{4,6}(?![\d,.])")
+_CARD_CANDIDATE = re.compile(r"(?:\d[ -]?){13,19}")
+_POSTAL_PIN = re.compile(r"(?i)(pin\s*-?\s*code|pincode|postal\s*code|पिन\s*कोड)\s*(?:hai|है|is|:)?\s*\d{6}")
+
+
+def _luhn_ok(digits: str) -> bool:
+    total, alt = 0, False
+    for ch in reversed(digits):
+        d = int(ch)
+        if alt:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+        alt = not alt
+    return total % 10 == 0
+
+
+def detect_sensitive_credential(text: str) -> tuple[bool, str | None]:
+    """True when the message contains or offers a PIN/OTP/password/card number (R7)."""
+    if _CREDENTIAL_WORDS.search(text):
+        return True, "credential_keyword"
+    for m in _CARD_CANDIDATE.finditer(text):
+        digits = re.sub(r"\D", "", m.group(0))
+        if 13 <= len(digits) <= 19 and _luhn_ok(digits):
+            return True, "card_number"
+    without_postal = _POSTAL_PIN.sub(" ", text)  # "pin code 110001" is an address, not a secret
+    if _CODE_CONTEXT.search(without_postal) and _BARE_CODE.search(without_postal):
+        return True, "bare_code_with_context"
+    return False, None
 
 
 def detect_prompt_injection(text: str) -> tuple[bool, str | None]:
@@ -167,21 +215,37 @@ DISALLOWED_AGENT_TOOLS = {
     "send_refund",
     "execute_refund",
     "direct_debit",
+    "confirm_booking",
 }
 
 AGENT_ALLOW_LISTS: dict[str, set[str]] = {
     "listener": {"classify_intent_and_extract_slots", "sanitize_security_input"},
     "context": {"fetch_context_bundle"},
-    "diagnostician": {"diagnose_root_cause_and_consult_rag"},
+    "diagnostician": {"run_checkup_diagnostics", "match_playbook"},
     "guardian": {"evaluate_action_policy"},
-    "action": {"execute_safe_action"},
-    "offer": {"evaluate_consent_first_loan_offer"},
+    "action": {"render_explanation"},
+    "offer": {"evaluate_consent_first_loan_offer", "quote_emi", "create_loan_request_for_human_approval",
+              "record_offer_decline"},
     "handoff": {"package_escalation_dossier"},
     "planner": {"generate_travel_roadmap"},
     "search": {"search_flight_inventories"},
     "ranker": {"rank_and_package_human_handoff"},
-    "captain": {"finalize_response"},
+    "captain": {"captain_plan", "finalize_response", "security_refusal"},
+    "llm_gateway": {"llm_classify", "llm_summarize"},
+    "pulse": {"build_pulse", "build_advice", "travel_booking_status"},
 }
+
+
+class ToolNotAllowed(PermissionError):
+    pass
+
+
+def enforce_tool_allowed(agent_name: str, tool_name: str | None) -> None:
+    """Runtime enforcement of R3 for every agent step (called from the trace bus)."""
+    if tool_name is None:
+        return
+    if not is_tool_allowed_for_agent(agent_name, tool_name):
+        raise ToolNotAllowed(f"Agent '{agent_name}' is not allowed to call tool '{tool_name}'")
 
 
 def is_tool_allowed_for_agent(agent_name: str, tool_name: str) -> bool:

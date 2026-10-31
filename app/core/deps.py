@@ -1,4 +1,5 @@
 from typing import Annotated
+
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -110,6 +111,34 @@ def verify_merchant_ownership(merchant_id: str, current_user: User) -> None:
         status_code=status.HTTP_403_FORBIDDEN,
         detail=f"Forbidden: Role '{current_user.role}' cannot access merchant resources.",
     )
+
+
+def resolve_subject(
+    current_user: User, subject_type: str | None = None, subject_id: str | None = None
+) -> tuple[str, str, bool]:
+    """Who is this request about? Returns (subject_type, subject_id, on_behalf).
+
+    Merchants and travellers can only ever act on themselves (the id comes from the token).
+    ops_agent / admin must name the subject explicitly; the caller audits it as on-behalf.
+    """
+    if current_user.role == "merchant":
+        if not current_user.merchant_id or (subject_id and subject_id != current_user.merchant_id) or \
+                (subject_type and subject_type != "merchant"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden (IDOR Violation): merchants can only act on "
+                                                           "their own account")
+        return "merchant", current_user.merchant_id, False
+    if current_user.role == "traveller":
+        if not current_user.customer_id or (subject_id and subject_id != current_user.customer_id) or \
+                (subject_type and subject_type != "traveller"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden (IDOR Violation): travellers can only act on "
+                                                           "their own account")
+        return "traveller", current_user.customer_id, False
+    if current_user.role in ("ops_agent", "admin"):
+        if subject_type not in ("merchant", "traveller") or not subject_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "ops_agent/admin must specify subject_type and subject_id")
+        return subject_type, subject_id, True
+    raise HTTPException(status.HTTP_403_FORBIDDEN, f"Role '{current_user.role}' cannot act on accounts")
 
 
 def verify_traveller_ownership(customer_id: str, current_user: User) -> None:

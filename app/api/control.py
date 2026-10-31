@@ -29,9 +29,6 @@ async def toggle_kill_switch(
     When active, all safe actions downgrade to human escalations.
     """
     updated_state = await kill_switch_service.set_active(
-        active=payload.active,
-        actor=current_user.username or payload.actor,
-        reason=payload.reason,
-        db=db,
+        payload.active, current_user.username, payload.reason, db
     )
     return updated_state

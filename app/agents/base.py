@@ -8,20 +8,14 @@ from app.trace.bus import trace_bus
 
 
 class BaseAgent(abc.ABC):
-    """Abstract Base Class for all Saarthi specialist agents."""
+    """Base class for Saarthi specialist agents. Every step goes through the trace bus,
+    which enforces the R3 tool allow-list and the per-turn tool budget."""
 
     def __init__(self, name: str) -> None:
         self.name = name
 
-    @abc.abstractmethod
-    async def process(
-        self,
-        case_id: str,
-        input_data: dict[str, Any],
-        db: AsyncSession,
-    ) -> AgentEnvelope:
-        """Processes typed input and returns a strictly typed AgentEnvelope."""
-        pass
+    async def process(self, case_id: str, input_data: dict[str, Any], db: AsyncSession) -> AgentEnvelope:
+        raise NotImplementedError
 
     async def emit_step(
         self,
@@ -31,8 +25,8 @@ class BaseAgent(abc.ABC):
         output_data: Any,
         confidence: float,
         db: AsyncSession | None = None,
+        latency_ms: float = 0.0,
     ) -> str:
-        """Emits an observable execution step to both WebSocket trace and database."""
         return await trace_bus.publish_step(
             case_id=case_id,
             agent=self.name,
@@ -41,4 +35,5 @@ class BaseAgent(abc.ABC):
             output_data=output_data,
             confidence=confidence,
             db=db,
+            latency_ms=latency_ms,
         )

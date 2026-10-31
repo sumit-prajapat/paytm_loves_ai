@@ -1,96 +1,67 @@
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+"""Travel: airport lookup, direct search, booking status ON REQUEST, simulated checkout page.
+
+Booking summaries are only produced by the Ranker (never from client-supplied prices).
+"""
+import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Airport
+from app.core.deps import get_current_user, resolve_subject
+from app.db.models import Airport, User
 from app.db.session import get_db
-from app.services.travel_service import travel_service
+from app.i18n import resolve_language
+from app.i18n.numbers import money
+from app.services.pulse_service import booking_status
+from app.services.travel_service import rank, search_flights
 
 router = APIRouter(prefix="/travel", tags=["Travel"])
-
-
-class BookingSummaryRequest(BaseModel):
-    flight_id: str = Field(..., description="Selected flight ID")
-    airline: str = Field(..., description="Airline name")
-    dep_time: str = Field(..., description="Departure time")
-    arr_time: str = Field(..., description="Arrival time")
-    price_inr: float = Field(..., description="Total fare in INR")
-    refundable: bool = Field(False, description="Whether fare is refundable")
-    passenger_name: str = Field("Arjun Sharma", description="Passenger full name")
+payments_router = APIRouter(prefix="/payments", tags=["Payments (simulated)"])
 
 
 @router.get("/flights/search")
-async def search_flights(
-    from_iata: str = Query("DEL", alias="from", description="Departure airport code (e.g. DEL)"),
-    to_iata: str = Query("BOM", alias="to", description="Destination airport code (e.g. BOM)"),
-    date: str | None = Query(None, description="Date of travel (YYYY-MM-DD)"),
-    window: str | None = Query("evening", description="Time window: morning | afternoon | evening | night"),
-    preference: str = Query("balanced", description="Preference: sasta | jaldi | elder | balanced"),
-    lang: str = Query("hi", description="Response language"),
+async def search(
+    from_iata: str = Query(..., alias="from", min_length=3, max_length=3),
+    to_iata: str = Query(..., alias="to", min_length=3, max_length=3),
+    date: datetime.date = Query(...),
+    window: str | None = Query(None, pattern="^(morning|afternoon|evening|night)$"),
+    preference: str = Query("balanced", pattern="^(cheap|fast|comfort|balanced)$"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Executes parallel flight search, applies deterministic scoring, and returns roadmap + top 3 options."""
-    return await travel_service.search_and_rank(
-        db=db,
-        from_iata=from_iata,
-        to_iata=to_iata,
-        date_str=date,
-        window=window,
-        preference=preference,
-        language=lang,
-    )
+    """Deterministic search + ranking with score breakdown (no LLM). Read-only."""
+    flights = await search_flights(db, from_iata.upper(), to_iata.upper(), date.isoformat())
+    ranked = rank(flights, date.isoformat(), preference, window)
+    for o in ranked.get("options", []):
+        o["price"] = money(o["price_inr"])
+    return {"from": from_iata.upper(), "to": to_iata.upper(), "date": date.isoformat(), **ranked}
 
 
 @router.get("/airports")
-async def search_airports(
-    q: str = Query(..., min_length=1, description="Search query by city, IATA code, or airport name"),
-    db: AsyncSession = Depends(get_db),
-):
-    """Lookup Indian airports by city name or IATA code."""
+async def search_airports(q: str = Query(..., min_length=1, max_length=64),
+                          current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = f"%{q.strip().lower()}%"
-    stmt = (
-        select(Airport)
-        .where(
-            or_(
-                Airport.city.ilike(query),
-                Airport.iata.ilike(query),
-                Airport.name.ilike(query),
-            )
-        )
-        .limit(10)
-    )
-    res = await db.execute(stmt)
-    airports = list(res.scalars().all())
-
-    return [
-        {"iata": a.iata, "name": a.name, "city": a.city, "lat": a.lat, "lon": a.lon}
-        for a in airports
-    ]
+    rows = (await db.execute(select(Airport).where(or_(Airport.city.ilike(query), Airport.iata.ilike(query),
+                                                       Airport.name.ilike(query))).limit(10))).scalars().all()
+    return [{"iata": a.iata, "name": a.name, "city": a.city, "lat": a.lat, "lon": a.lon} for a in rows]
 
 
-@router.post("/booking-summary")
-async def create_booking_summary(payload: BookingSummaryRequest):
-    """Generates the pre-filled human review & pay handoff object.
+@router.get("/status/{booking_ref}")
+async def travel_status(booking_ref: str, language: str | None = Query(None, max_length=16),
+                        customer_id: str | None = Query(None, description="ops/admin only"),
+                        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Status of the traveller's own booking, only when they ask (no watchers)."""
+    _, subject_id, _ = resolve_subject(current_user, "traveller" if customer_id else None, customer_id)
+    st = await booking_status(db, subject_id, booking_ref, resolve_language(language or "en"))
+    if st["booking"] is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
+    return {"text": st["text"], "booking": st["booking"]}
 
-    The AI never confirms payments autonomously (Rule R3).
-    """
-    flight_dict = payload.model_dump()
-    return travel_service.create_booking_summary(flight_dict, payload.passenger_name)
 
-
-@router.get("/status/{flight_no}")
-async def get_flight_status(
-    flight_no: str,
-    date: str | None = Query(None, description="Travel date"),
-):
-    """Returns simulated flight status, departure gate, and delay notifications."""
-    return {
-        "flight_no": flight_no,
-        "date": date,
-        "status": "on_time",
-        "gate": "T3 - Gate 14B",
-        "delay_minutes": 0,
-        "weather_at_dest": "Clear, 28°C",
-        "notice": "All systems normal. Web check-in available.",
-    }
+@payments_router.get("/mock-checkout/{order_id}")
+async def mock_checkout(order_id: str):
+    """Simulated payment page target. Real payment happens only on Paytm with the user's own UPI PIN."""
+    return {"order_id": order_id, "status": "simulated_checkout",
+            "notice": "SIMULATED. In production the traveller reviews and pays on Paytm with their UPI PIN. "
+                      "Saarthi never pays or confirms bookings."}

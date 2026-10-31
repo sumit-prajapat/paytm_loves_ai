@@ -1,8 +1,10 @@
 import csv
 import logging
 import os
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import Airport, Flight
+
+from app.db.models import Flight
 
 logger = logging.getLogger(__name__)
 

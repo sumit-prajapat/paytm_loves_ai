@@ -1,5 +1,7 @@
+import asyncio
 import datetime
 from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,8 +18,20 @@ async def record_audit_log(
     ip_address: str | None = None,
     correlation_id: str | None = None,
 ) -> AuditLog:
-    """Inserts a tamper-evident audit log row cryptographically chained to the previous row."""
-    # Find the most recent row in the chain
+    """Inserts a tamper-evident audit log row cryptographically chained to the previous row.
+
+    ALL audit writes must use this function (direct AuditLog(...) inserts break the chain).
+    The lock serialises read-last-then-insert within a process; multi-worker deployments need a
+    DB-level sequence (tracked for Step F).
+    """
+    async with _CHAIN_LOCK:
+        return await _append(db, case_id, actor, action, detail, ip_address, correlation_id)
+
+
+_CHAIN_LOCK = asyncio.Lock()
+
+
+async def _append(db, case_id, actor, action, detail, ip_address, correlation_id) -> AuditLog:
     stmt = select(AuditLog).order_by(AuditLog.id.desc()).limit(1)
     res = await db.execute(stmt)
     last_row = res.scalar_one_or_none()
@@ -28,7 +42,8 @@ async def record_audit_log(
         else "GENESIS_HASH"
     )
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    # Naive UTC: SQLite drops tzinfo on read, and the hash must be recomputable after reload.
+    now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     current_hash = compute_audit_hash(
         previous_hash=previous_hash,
         case_id=case_id,
@@ -50,6 +65,7 @@ async def record_audit_log(
         ts=now,
     )
     db.add(audit_entry)
+    await db.flush()  # make it visible to the next chained write in this transaction
     return audit_entry
 
 

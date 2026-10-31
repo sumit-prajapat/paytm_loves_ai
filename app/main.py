@@ -9,25 +9,28 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.adapter_health import router as adapter_health_router
+from app.api.audio import router as audio_router
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.checkups import router as checkups_router
 from app.api.control import router as control_router
+from app.api.demo import router as demo_router
 from app.api.devices import router as devices_router
 from app.api.disputes import router as disputes_router
 from app.api.escalations import router as escalations_router
-from app.api.events import router as events_router
 from app.api.health import router as health_router
 from app.api.loans import router as loans_router
 from app.api.merchants import router as merchants_router
 from app.api.metrics import router as metrics_router
-from app.api.notifications import router as notifications_router
 from app.api.playbooks import router as playbooks_router
 from app.api.pulse import router as pulse_router
 from app.api.refunds import router as refunds_router
 from app.api.settlements import router as settlements_router
+from app.api.soundbox import router as soundbox_router
 from app.api.tickets import router as tickets_router
 from app.api.transactions import router as transactions_router
+from app.api.travel import payments_router
 from app.api.travel import router as travel_router
 from app.api.voice import router as voice_router
 from app.api.ws import router as ws_router
@@ -38,8 +41,8 @@ from app.core.middleware import (
     SecurityHeadersMiddleware,
 )
 from app.db.session import init_db
-from app.events.scheduler import start_scheduler, stop_scheduler
 from app.logging import setup_logging
+from app.ops.housekeeping import start_housekeeping, stop_housekeeping
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -62,12 +65,12 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database tables initialized successfully")
 
-    # Start background anomaly scheduler
-    start_scheduler()
+    # R11: no per-user/fleet background work. Only housekeeping that touches no user data.
+    start_housekeeping()
 
     yield
 
-    stop_scheduler()
+    stop_housekeeping()
     logger.info("Shutting down Saarthi backend server")
 
 
@@ -86,22 +89,15 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CorrelationIdMiddleware)
 
 # 2. CORS Policy: Restricted in non-demo mode
-if settings.DEMO_MODE:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.ALLOWED_CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Correlation-ID", "X-Idempotency-Key"],
-    )
+# CORS from env (ALLOWED_CORS_ORIGINS). Wildcard origins never combine with credentials.
+_origins = settings.ALLOWED_CORS_ORIGINS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials="*" not in _origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Correlation-ID", "X-Idempotency-Key"],
+)
 
 
 # 3. Global Exception Handlers (Never leak stack traces, SQL, or internal file paths)
@@ -123,7 +119,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     corr_id = getattr(request.state, "correlation_id", f"corr_{uuid.uuid4().hex[:12]}")
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error": True,
             "code": "VALIDATION_ERROR",
@@ -150,27 +146,13 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# 4. Register All Routers
-app.include_router(auth_router)
+# 4. Routers: probes at the root, everything else versioned under /api/v1, WebSockets at /ws
+API_V1 = "/api/v1"
 app.include_router(health_router)
 app.include_router(adapter_health_router)
-app.include_router(control_router)
-app.include_router(merchants_router)
-app.include_router(transactions_router)
-app.include_router(settlements_router)
-app.include_router(refunds_router)
-app.include_router(devices_router)
-app.include_router(tickets_router)
-app.include_router(notifications_router)
-app.include_router(loans_router)
-app.include_router(disputes_router)
-app.include_router(playbooks_router)
-app.include_router(audit_router)
-app.include_router(travel_router)
-app.include_router(metrics_router)
-app.include_router(chat_router)
-app.include_router(voice_router)
-app.include_router(pulse_router)
-app.include_router(events_router)
-app.include_router(escalations_router)
+for _router in (auth_router, control_router, merchants_router, transactions_router, settlements_router,
+                refunds_router, devices_router, tickets_router, loans_router, disputes_router, playbooks_router,
+                audit_router, travel_router, payments_router, metrics_router, chat_router, voice_router,
+                pulse_router, escalations_router, checkups_router, soundbox_router, audio_router, demo_router):
+    app.include_router(_router, prefix=API_V1)
 app.include_router(ws_router)

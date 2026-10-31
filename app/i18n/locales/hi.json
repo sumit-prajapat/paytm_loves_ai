@@ -1,0 +1,97 @@
+{
+  "common.today": "आज",
+  "common.and": " और ",
+  "common.rupees": "रुपये",
+  "common.name": "{name} जी",
+
+  "settlement.gap_explained": "{name}, {date_label} का सेटलमेंट {gap} कम आया है: {breakdown}। आपको कुछ करने की ज़रूरत नहीं है।",
+  "settlement.gap_explained_spoken": "{name}, {date_label} का सेटलमेंट {gap_spoken} रुपये कम आया है: {breakdown_spoken}। आपको कुछ करने की ज़रूरत नहीं है।",
+  "settlement.item.refund_adjustment": "{amount} रिफ़ंड एडजस्टमेंट",
+  "settlement.item.fee": "{amount} फ़ीस",
+  "settlement.item.chargeback_hold": "{amount} चार्जबैक होल्ड",
+  "settlement.item.other": "{amount} अन्य कटौती",
+  "settlement.unreconciled": "{name}, {date_label} का सेटलमेंट {gap} कम आया है, और इसमें से सिर्फ़ {explained} का हिसाब मिल रहा है। हमने इसे सेटलमेंट टीम को भेज दिया है (टिकट {ticket_id})।",
+  "settlement.ok": "{name}, {date_label} का सेटलमेंट पूरा आया है: {actual}।",
+  "settlement.none": "आपके खाते का कोई सेटलमेंट रिकॉर्ड अभी नहीं मिला।",
+
+  "device.low_battery": "आपके साउंडबॉक्स की बैटरी {battery}% है। कृपया चार्जर लगाइए।",
+  "device.low_battery_spoken": "साउंडबॉक्स की बैटरी {battery_spoken} प्रतिशत है। कृपया चार्जर लगाइए।",
+  "device.offline": "आपका साउंडबॉक्स {minutes} मिनट से ऑफ़लाइन है। कृपया उसे बंद करके फिर चालू कीजिए और नेटवर्क देखिए।",
+  "device.offline_spoken": "साउंडबॉक्स {minutes_spoken} मिनट से ऑफ़लाइन है। कृपया उसे फिर से चालू कीजिए और नेटवर्क देखिए।",
+  "device.ok": "आपका साउंडबॉक्स ठीक चल रहा है। बैटरी {battery}% है।",
+  "device.ok_spoken": "साउंडबॉक्स ठीक चल रहा है। बैटरी {battery_spoken} प्रतिशत है।",
+  "device.none": "आपके खाते से कोई साउंडबॉक्स जुड़ा नहीं है।",
+
+  "refunds.pending": "आपका {amount} का रिफ़ंड (बैंक रेफ़ {bank_ref}) प्रोसेस में है, {expected_by} तक आ जाना चाहिए।",
+  "refunds.overdue": "आपका {amount} का रिफ़ंड (बैंक रेफ़ {bank_ref}) {expected_by} तक आना था, पर अभी तक नहीं आया। हमने इसे बैंकिंग टीम को भेज दिया है (टिकट {ticket_id})।",
+  "refunds.none": "आपका कोई रिफ़ंड लंबित नहीं है।",
+  "refunds.demand_prefix": "सारथी खुद रिफ़ंड जारी नहीं कर सकता, यह सिर्फ़ अधिकृत व्यक्ति करते हैं। आपके रिफ़ंड की स्थिति:",
+
+  "payments.failed_summary": "पिछले {days} दिनों में {count} पेमेंट फ़ेल हुए। आख़िरी: {amount}, कारण: {reason}।",
+  "payments.none": "पिछले {days} दिनों में कोई पेमेंट फ़ेल नहीं हुआ।",
+  "failure_reason.bank_timeout": "बैंक टाइमआउट",
+  "failure_reason.insufficient_balance": "ग्राहक के खाते में बैलेंस कम था",
+  "failure_reason.technical_decline": "तकनीकी कारण से अस्वीकार",
+  "failure_reason.other": "बैंक ने अस्वीकार किया",
+
+  "dispute.escalated": "{amount} का चार्जबैक विवाद खुला है (आख़िरी तारीख़ {deadline})। यह जोखिम वाला मामला है, इसलिए विशेषज्ञ इसे देखेंगे (टिकट {ticket_id})। आपको अपनी बात दोबारा नहीं बतानी पड़ेगी।",
+  "dispute.playbook_evidence": "{amount} के चार्जबैक के लिए: कृपया बिल और डिलीवरी का सबूत {deadline} से पहले ऐप में अपलोड कीजिए। पिछले ऐसे मामले इसी तरह सुलझे थे।",
+
+  "checkup.all_clear": "सब ठीक है, कोई समस्या नहीं मिली।",
+  "checkup.cached_note": "({minutes_ago} मिनट पहले जाँचा गया। दोबारा जाँचने के लिए 'फिर से जाँचें' दबाइए।)",
+  "checkup.cooldown_note": "(अभी जाँचा गया है। {wait_seconds} सेकंड बाद दोबारा जाँच सकते हैं।)",
+  "checkup.quota_exceeded": "आज की जाँचें पूरी हो गईं। कल फिर कोशिश कीजिए, या शिकायत दर्ज कीजिए, एक व्यक्ति मदद करेगा।",
+
+  "escalation.generic": "आपका मामला हमारे विशेषज्ञ को भेज दिया गया है (टिकट {ticket_id})। आपको अपनी बात दोबारा नहीं बतानी पड़ेगी।",
+  "escalation.killswitch": "सुरक्षा के लिए अभी स्वचालित काम रुका हुआ है। एक व्यक्ति आपका अनुरोध देखेगा (टिकट {ticket_id})।",
+
+  "offer.proposal": "आपके लेन-देन रिकॉर्ड के आधार पर आप {max_amount} तक के लोन के लिए पात्र हैं। क्या आप जानकारी चाहेंगे?",
+  "offer.declined_ack": "ठीक है, हमने नोट कर लिया। हम दोबारा लोन का सुझाव नहीं देंगे।",
+
+  "loan.emi_quote": "{amount} के लिए {tenure} महीने की EMI {emi} प्रति माह होगी ({rate}% सालाना ब्याज)। आवेदन के लिए 'आवेदन करें' कहिए; मंज़ूरी एक व्यक्ति देगा।",
+  "loan.ask_amount": "आपको कितना लोन चाहिए?",
+  "loan.not_eligible": "अभी आप लोन के लिए पात्र नहीं हैं।",
+  "loan.applied": "आपका {amount} का लोन आवेदन (आईडी {request_id}) जमा हो गया है। एक अधिकारी इसकी समीक्षा करेगा; सारथी खुद लोन मंज़ूर नहीं करता।",
+  "loan.approve_refused": "लोन की मंज़ूरी सिर्फ़ अधिकृत अधिकारी दे सकता है। सारथी यह नहीं कर सकता।",
+
+  "payment.refused": "सुरक्षा नियमों के अनुसार सारथी कभी खुद पेमेंट नहीं करता, न बुकिंग कन्फ़र्म करता है। 'रिव्यू करें और पे करें' खोलकर अपना UPI PIN खुद डालिए।",
+  "security.credential": "सावधान: Paytm या सारथी कभी भी आपका UPI PIN, OTP या पासवर्ड नहीं माँगता। इसे किसी से साझा न करें। सुरक्षा के लिए हमने इसे प्रोसेस नहीं किया।",
+  "security.injection": "माफ़ कीजिए, मैं सिर्फ़ आपके खाते, पेमेंट, साउंडबॉक्स, लोन और यात्रा में मदद कर सकता हूँ।",
+
+  "clarify.care": "कृपया बताइए, आपको किसमें मदद चाहिए: सेटलमेंट, साउंडबॉक्स, पेमेंट/रिफ़ंड या लोन?",
+  "degraded.human_queue": "मैं आपकी बात पूरी तरह समझ नहीं पाया, इसलिए आपका सवाल एक व्यक्ति को भेज दिया है (टिकट {ticket_id})।",
+  "smalltalk.greeting": "नमस्ते! मैं सारथी हूँ। मैं आपका सेटलमेंट, साउंडबॉक्स, पेमेंट और रिफ़ंड जाँच सकता हूँ, और फ़्लाइट ढूँढने में मदद कर सकता हूँ।",
+
+  "travel.ask_destination": "आपको कहाँ जाना है?",
+  "travel.ask_origin": "आप किस शहर से जाएँगे?",
+  "travel.ask_date": "किस तारीख़ को जाना है?",
+  "travel.no_flights": "{origin} से {destination} के लिए {date} के आसपास कोई फ़्लाइट डेटा नहीं मिला।",
+  "travel.date_adjusted": "{requested} को फ़्लाइट नहीं मिली, {actual} के विकल्प दिखा रहे हैं।",
+  "travel.reason.cheapest_is_best": "सुझाव: {airline}, {price}। यह सबसे सस्ता भी है और समय, स्टॉप और भरोसे में भी सबसे अच्छा है।",
+  "travel.reason.costlier_faster": "सुझाव: {airline}, {price}। यह सबसे सस्ते से {price_diff} ज़्यादा है पर {minutes_saved} मिनट जल्दी पहुँचाता है।",
+  "travel.reason.costlier_better_score": "सुझाव: {airline}, {price}। यह सबसे सस्ते से {price_diff} ज़्यादा है पर स्टॉप और समय पर पहुँचने के रिकॉर्ड में बेहतर है।",
+  "travel.reason.refundable_suffix": " इसमें फ़्री कैंसलेशन भी है।",
+  "travel.handoff_notice": "रिव्यू और पेमेंट आप खुद 'रिव्यू करें और पे करें' लिंक पर करेंगे। सारथी कभी पेमेंट या बुकिंग कन्फ़र्म नहीं करता।",
+  "travel.roadmap.understand": "आपकी ज़रूरत समझी: {origin} से {destination}, {date}",
+  "travel.roadmap.search": "{date} और एक दिन आगे-पीछे की फ़्लाइटें खोजीं",
+  "travel.roadmap.filter": "'{window}' प्रस्थान को प्राथमिकता",
+  "travel.roadmap.score": "हर विकल्प को दाम, समय, टाइमिंग, स्टॉप, रिफ़ंड और समय-पालन पर स्कोर किया ('{preference}')",
+  "travel.roadmap.guardian": "जोखिम जाँचे (नॉन-रिफ़ंडेबल किराया, स्टॉप)",
+  "travel.roadmap.handoff": "CHEAPEST / FASTEST / BEST_BALANCE और आपके लिए रिव्यू व पे लिंक तैयार",
+  "travel.status.on_time": "बुकिंग {booking_ref}: {airline} {flight_no}, {date}, {dep_time} बजे, समय पर है। गेट {gate}।",
+  "travel.status.delayed": "बुकिंग {booking_ref}: {airline} {flight_no}, {date}, {delay} मिनट देर से है। गेट {gate}।",
+  "travel.status.cancelled": "बुकिंग {booking_ref}: {airline} {flight_no}, {date}, रद्द हो गई है। विकल्प देखने के लिए बुकिंग खोलिए।",
+  "travel.status.not_found": "यह बुकिंग आपके खाते में नहीं मिली।",
+  "travel.status.ask_ref": "कृपया अपना बुकिंग रेफ़रेंस बताइए।",
+
+  "pulse.text": "शुभ प्रभात {name}! {date_label} का सेटलमेंट {actual} आया{gap_part}। लंबित रिफ़ंड: {pending_refunds}। खुले विवाद: {open_disputes}। साउंडबॉक्स बैटरी: {battery}%।",
+  "pulse.gap_part": ", जो उम्मीद से {gap} कम है",
+  "pulse.no_settlement": "शुभ प्रभात {name}! अभी कोई सेटलमेंट रिकॉर्ड नहीं है। साउंडबॉक्स बैटरी: {battery}%।",
+
+  "advice.festival": "{festival} {days} दिन में है। भीड़ बढ़ेगी: साउंडबॉक्स पूरा चार्ज रखिए (अभी {battery}%) और खुले पैसे तैयार रखिए।",
+  "advice.no_festival": "अगले {days} दिनों में कोई बड़ा त्योहार नहीं है।",
+  "advice.battery_low": "आपके साउंडबॉक्स की बैटरी {battery}% है। शाम की भीड़ से पहले चार्ज कर लीजिए।",
+  "advice.battery_ok": "आपके साउंडबॉक्स की बैटरी {battery}% है, जो ठीक है।",
+
+  "voice.not_understood": "माफ़ कीजिए, ठीक से सुनाई नहीं दिया। कृपया दोबारा बोलिए।"
+}

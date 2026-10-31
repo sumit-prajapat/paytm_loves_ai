@@ -1,0 +1,97 @@
+{
+  "common.today": "aaj",
+  "common.and": " aur ",
+  "common.rupees": "rupaye",
+  "common.name": "{name} ji",
+
+  "settlement.gap_explained": "{name}, {date_label} ka settlement {gap} kam aaya hai: {breakdown}. Aapko kuch karne ki zaroorat nahi.",
+  "settlement.gap_explained_spoken": "{name}, {date_label} ka settlement {gap_spoken} rupaye kam aaya hai: {breakdown_spoken}. Aapko kuch karne ki zaroorat nahi.",
+  "settlement.item.refund_adjustment": "{amount} refund adjustment",
+  "settlement.item.fee": "{amount} fees",
+  "settlement.item.chargeback_hold": "{amount} chargeback hold",
+  "settlement.item.other": "{amount} anya katauti",
+  "settlement.unreconciled": "{name}, {date_label} ka settlement {gap} kam aaya hai, aur isme se sirf {explained} ka hisaab mil raha hai. Humne ise settlement team ko bhej diya hai (ticket {ticket_id}).",
+  "settlement.ok": "{name}, {date_label} ka settlement poora aaya hai: {actual}.",
+  "settlement.none": "Aapke account ka koi settlement record abhi nahi mila.",
+
+  "device.low_battery": "Aapke Soundbox ki battery {battery}% hai. Kripya charger lagaiye.",
+  "device.low_battery_spoken": "Soundbox ki battery {battery_spoken} percent hai. Kripya charger lagaiye.",
+  "device.offline": "Aapka Soundbox {minutes} minute se offline hai. Kripya use band karke phir chalu kijiye aur network check kijiye.",
+  "device.offline_spoken": "Soundbox {minutes_spoken} minute se offline hai. Kripya use restart kijiye aur network check kijiye.",
+  "device.ok": "Aapka Soundbox theek chal raha hai. Battery {battery}% hai.",
+  "device.ok_spoken": "Soundbox theek chal raha hai. Battery {battery_spoken} percent hai.",
+  "device.none": "Aapke account se koi Soundbox juda nahi hai.",
+
+  "refunds.pending": "Aapka {amount} ka refund (bank ref {bank_ref}) process mein hai, {expected_by} tak aa jaana chahiye.",
+  "refunds.overdue": "Aapka {amount} ka refund (bank ref {bank_ref}) {expected_by} tak aana tha, par abhi tak nahi aaya. Humne ise banking team ko bhej diya hai (ticket {ticket_id}).",
+  "refunds.none": "Aapka koi refund pending nahi hai.",
+  "refunds.demand_prefix": "Saarthi khud refund jaari nahi kar sakta, yeh sirf adhikrit vyakti karte hain. Aapke refund ki sthiti:",
+
+  "payments.failed_summary": "Pichhle {days} din mein {count} payment fail hue. Aakhri: {amount}, kaaran: {reason}.",
+  "payments.none": "Pichhle {days} din mein koi payment fail nahi hua.",
+  "failure_reason.bank_timeout": "bank timeout",
+  "failure_reason.insufficient_balance": "customer ke account mein balance kam tha",
+  "failure_reason.technical_decline": "technical decline",
+  "failure_reason.other": "bank ne decline kiya",
+
+  "dispute.escalated": "{amount} ka chargeback dispute khula hai (aakhri tareekh {deadline}). Yeh jokhim wala case hai, isliye specialist ise dekhenge (ticket {ticket_id}). Aapko apni baat dobara nahi batani padegi.",
+  "dispute.playbook_evidence": "{amount} ke chargeback ke liye: kripya bill aur delivery ka saboot {deadline} se pehle app mein upload kijiye. Pichhle aise case isi tarah suljhe the.",
+
+  "checkup.all_clear": "Sab theek hai, koi samasya nahi mili.",
+  "checkup.cached_note": "({minutes_ago} minute pehle check kiya gaya. Dobara check karne ke liye 're-check' dabaiye.)",
+  "checkup.cooldown_note": "(Abhi check kiya hai. {wait_seconds} second baad dobara check kar sakte hain.)",
+  "checkup.quota_exceeded": "Aaj ke check-up poore ho gaye. Kal dobara koshish kijiye, ya issue raise kijiye, ek vyakti madad karega.",
+
+  "escalation.generic": "Aapka mamla humare specialist ko bhej diya gaya hai (ticket {ticket_id}). Aapko apni baat dobara nahi batani padegi.",
+  "escalation.killswitch": "Suraksha ke liye abhi automatic kaam ruka hua hai. Ek vyakti aapka anurodh dekhega (ticket {ticket_id}).",
+
+  "offer.proposal": "Aapke collection record ke aadhar par aap {max_amount} tak ke loan ke liye eligible hain. Kya aap jaankari chahenge?",
+  "offer.declined_ack": "Theek hai, humne note kar liya. Hum dobara loan ka sujhav nahi denge.",
+
+  "loan.emi_quote": "{amount} ke liye {tenure} mahine ki EMI {emi} mahina hogi ({rate}% saalana byaaj). Aavedan ke liye 'apply' boliye; manzoori ek vyakti dega.",
+  "loan.ask_amount": "Aapko kitna loan chahiye?",
+  "loan.not_eligible": "Abhi aap loan ke liye eligible nahi hain.",
+  "loan.applied": "Aapka {amount} ka loan aavedan (id {request_id}) jama ho gaya hai. Ek adhikari ise dekhega; Saarthi khud loan manzoor nahi karta.",
+  "loan.approve_refused": "Loan ki manzoori sirf adhikrit adhikari de sakta hai. Saarthi yeh nahi kar sakta.",
+
+  "payment.refused": "Suraksha niyamon ke anusaar Saarthi kabhi khud payment nahi karta, na booking confirm karta hai. 'Review and Pay' kholkar apna UPI PIN khud daaliye.",
+  "security.credential": "Savdhaan: Paytm ya Saarthi kabhi bhi aapka UPI PIN, OTP ya password nahi maangta. Ise kisi ke saath share na karein. Suraksha ke liye humne ise process nahi kiya.",
+  "security.injection": "Maaf kijiye, main sirf aapke account, payment, Soundbox, loan aur travel mein madad kar sakta hoon.",
+
+  "clarify.care": "Kripya bataiye, aapko kis mein madad chahiye: settlement, Soundbox, payment/refund ya loan?",
+  "degraded.human_queue": "Main aapki baat poori tarah samajh nahi paaya, isliye aapka sawaal ek vyakti ko bhej diya hai (ticket {ticket_id}).",
+  "smalltalk.greeting": "Namaste! Main Saarthi hoon. Main aapka settlement, Soundbox, payment aur refund check kar sakta hoon, aur flight dhoondhne mein madad kar sakta hoon.",
+
+  "travel.ask_destination": "Aapko kahan jaana hai?",
+  "travel.ask_origin": "Aap kis shehar se jaayenge?",
+  "travel.ask_date": "Kis tareekh ko jaana hai?",
+  "travel.no_flights": "{origin} se {destination} ke liye {date} ke aas-paas koi flight data nahi mila.",
+  "travel.date_adjusted": "{requested} ko flight nahi mili, {actual} ke vikalp dikha rahe hain.",
+  "travel.reason.cheapest_is_best": "Sujhav: {airline}, {price}. Yeh sabse sasta bhi hai aur samay, stop aur bharose mein bhi sabse achha hai.",
+  "travel.reason.costlier_faster": "Sujhav: {airline}, {price}. Yeh sabse saste se {price_diff} zyada hai par {minutes_saved} minute jaldi pahunchata hai.",
+  "travel.reason.costlier_better_score": "Sujhav: {airline}, {price}. Yeh sabse saste se {price_diff} zyada hai par stop aur on-time record mein behtar hai.",
+  "travel.reason.refundable_suffix": " Isme free cancellation bhi hai.",
+  "travel.handoff_notice": "Review aur payment aap khud 'Review and Pay' link par karenge. Saarthi kabhi payment ya booking confirm nahi karta.",
+  "travel.roadmap.understand": "Aapki zaroorat samjhi: {origin} se {destination}, {date}",
+  "travel.roadmap.search": "{date} aur ek din aage-peeche ki flights dhoondhi",
+  "travel.roadmap.filter": "'{window}' departure ko praathmikta",
+  "travel.roadmap.score": "Har vikalp ko daam, samay, timing, stop, refund aur on-time record par score kiya ('{preference}')",
+  "travel.roadmap.guardian": "Jokhim check kiye (non-refundable fare, stop)",
+  "travel.roadmap.handoff": "CHEAPEST / FASTEST / BEST_BALANCE aur aapke liye Review & Pay link taiyaar",
+  "travel.status.on_time": "Booking {booking_ref}: {airline} {flight_no}, {date}, {dep_time} baje, samay par hai. Gate {gate}.",
+  "travel.status.delayed": "Booking {booking_ref}: {airline} {flight_no}, {date}, {delay} minute late hai. Gate {gate}.",
+  "travel.status.cancelled": "Booking {booking_ref}: {airline} {flight_no}, {date}, cancel ho gayi hai. Vikalp dekhne ke liye booking kholiye.",
+  "travel.status.not_found": "Yeh booking aapke account mein nahi mili.",
+  "travel.status.ask_ref": "Kripya apna booking reference bataiye.",
+
+  "pulse.text": "Shubh prabhat {name}! {date_label} ka settlement {actual} aaya{gap_part}. Pending refund: {pending_refunds}. Khule dispute: {open_disputes}. Soundbox battery: {battery}%.",
+  "pulse.gap_part": ", jo ummeed se {gap} kam hai",
+  "pulse.no_settlement": "Shubh prabhat {name}! Abhi koi settlement record nahi hai. Soundbox battery: {battery}%.",
+
+  "advice.festival": "{festival} {days} din mein hai. Bheed badhegi: Soundbox poora charge rakhiye (abhi {battery}%) aur chhutte paise taiyaar rakhiye.",
+  "advice.no_festival": "Agle {days} din mein koi bada tyohaar nahi hai.",
+  "advice.battery_low": "Aapke Soundbox ki battery {battery}% hai. Shaam ki bheed se pehle charge kar lijiye.",
+  "advice.battery_ok": "Aapke Soundbox ki battery {battery}% hai, jo theek hai.",
+
+  "voice.not_understood": "Maaf kijiye, theek se sunaai nahi diya. Kripya dobara boliye."
+}

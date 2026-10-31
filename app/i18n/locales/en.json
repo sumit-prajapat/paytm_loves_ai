@@ -1,0 +1,97 @@
+{
+  "common.today": "today",
+  "common.and": " and ",
+  "common.rupees": "rupees",
+  "common.name": "{name}",
+
+  "settlement.gap_explained": "{name}, your settlement for {date_label} is short by {gap}: {breakdown}. No action is needed from you.",
+  "settlement.gap_explained_spoken": "{name}, your settlement for {date_label} is short by {gap_spoken} rupees: {breakdown_spoken}. No action is needed.",
+  "settlement.item.refund_adjustment": "{amount} refund adjustment",
+  "settlement.item.fee": "{amount} fees",
+  "settlement.item.chargeback_hold": "{amount} chargeback hold",
+  "settlement.item.other": "{amount} other deduction",
+  "settlement.unreconciled": "{name}, your settlement for {date_label} is short by {gap}, and only {explained} of it matches known deductions. We have sent this to the settlements team (ticket {ticket_id}).",
+  "settlement.ok": "{name}, your settlement for {date_label} arrived in full: {actual}.",
+  "settlement.none": "We could not find a settlement record for your account yet.",
+
+  "device.low_battery": "Your Soundbox battery is at {battery}%. Please connect the charger.",
+  "device.low_battery_spoken": "Soundbox battery is at {battery_spoken} percent. Please connect the charger.",
+  "device.offline": "Your Soundbox has not been seen for {minutes} minutes. Please switch it off and on again and check the network.",
+  "device.offline_spoken": "Soundbox has been offline for {minutes_spoken} minutes. Please restart it and check the network.",
+  "device.ok": "Your Soundbox is working fine. Battery is at {battery}%.",
+  "device.ok_spoken": "Soundbox is working fine. Battery is at {battery_spoken} percent.",
+  "device.none": "No Soundbox is linked to your account.",
+
+  "refunds.pending": "Your refund of {amount} (bank ref {bank_ref}) is in process and should arrive by {expected_by}.",
+  "refunds.overdue": "Your refund of {amount} (bank ref {bank_ref}) was due by {expected_by} and has not arrived. We have sent it to the banking team (ticket {ticket_id}).",
+  "refunds.none": "You have no pending refunds.",
+  "refunds.demand_prefix": "Saarthi cannot issue refunds itself; only an authorised person can. Here is your refund status:",
+
+  "payments.failed_summary": "In the last {days} days, {count} payment(s) failed. Latest: {amount}, reason: {reason}.",
+  "payments.none": "No payments failed in the last {days} days.",
+  "failure_reason.bank_timeout": "bank timeout",
+  "failure_reason.insufficient_balance": "customer had insufficient balance",
+  "failure_reason.technical_decline": "technical decline",
+  "failure_reason.other": "declined by bank",
+
+  "dispute.escalated": "A chargeback dispute of {amount} is open (deadline {deadline}). This is a risky case, so a specialist will handle it (ticket {ticket_id}). You will not need to repeat your story.",
+  "dispute.playbook_evidence": "For the {amount} chargeback: please upload the bill and delivery proof in the app before {deadline}. This is how similar cases were resolved before.",
+
+  "checkup.all_clear": "All clear. No problems found.",
+  "checkup.cached_note": "(Checked {minutes_ago} minutes ago. Tap 're-check' to check again.)",
+  "checkup.cooldown_note": "(Just checked. You can re-check in {wait_seconds} seconds.)",
+  "checkup.quota_exceeded": "You have used today's check-ups. Please try again tomorrow, or raise an issue and a person will help.",
+
+  "escalation.generic": "Your case has been sent to our specialist (ticket {ticket_id}). You will not need to repeat your story.",
+  "escalation.killswitch": "Automatic actions are paused for safety right now. A person will handle your request (ticket {ticket_id}).",
+
+  "offer.proposal": "Based on your collections, you are eligible for a working-capital loan of up to {max_amount}. Would you like to know more?",
+  "offer.declined_ack": "Okay, noted. We will not suggest a loan again.",
+
+  "loan.emi_quote": "For {amount} over {tenure} months, the EMI is {emi} per month at {rate}% a year. Say 'apply' to send an application; a person approves it.",
+  "loan.ask_amount": "How much loan do you need?",
+  "loan.not_eligible": "You are not eligible for a loan right now.",
+  "loan.applied": "Your loan application for {amount} (id {request_id}) has been submitted. An officer will review it; Saarthi never approves loans itself.",
+  "loan.approve_refused": "Only an authorised officer can approve a loan. Saarthi cannot do that.",
+
+  "payment.refused": "For your safety, Saarthi never makes payments or confirms bookings. Please open 'Review and Pay' and enter your UPI PIN yourself.",
+  "security.credential": "Warning: Paytm and Saarthi never ask for your UPI PIN, OTP or password. Do not share it with anyone. We have not processed this message.",
+  "security.injection": "Sorry, I can only help with your account, payments, Soundbox, loans and travel.",
+
+  "clarify.care": "Please tell me what you need help with: settlement, Soundbox, payment/refund, or loan?",
+  "degraded.human_queue": "I could not understand this fully, so I have sent your question to a person (ticket {ticket_id}).",
+  "smalltalk.greeting": "Namaste! I am Saarthi. I can check your settlement, Soundbox, payments and refunds, and help with flights.",
+
+  "travel.ask_destination": "Where would you like to fly to?",
+  "travel.ask_origin": "Which city are you flying from?",
+  "travel.ask_date": "On which date do you want to travel?",
+  "travel.no_flights": "No flight data found from {origin} to {destination} around {date}.",
+  "travel.date_adjusted": "No flights on {requested}; showing options for {actual}.",
+  "travel.reason.cheapest_is_best": "Recommended: {airline} at {price}. It is the cheapest and also scores best on time, stops and reliability.",
+  "travel.reason.costlier_faster": "Recommended: {airline} at {price}. It costs {price_diff} more than the cheapest but arrives {minutes_saved} minutes sooner.",
+  "travel.reason.costlier_better_score": "Recommended: {airline} at {price}. It costs {price_diff} more than the cheapest but scores better on stops and on-time record.",
+  "travel.reason.refundable_suffix": " It also has free cancellation.",
+  "travel.handoff_notice": "You will review and pay yourself using the 'Review and Pay' link. Saarthi never pays or confirms bookings.",
+  "travel.roadmap.understand": "Understand your request: {origin} to {destination}, {date}",
+  "travel.roadmap.search": "Search flights for {date} and one day either side",
+  "travel.roadmap.filter": "Prefer the '{window}' departure window",
+  "travel.roadmap.score": "Score every option on price, duration, timing, stops, refund policy and on-time record ('{preference}' weights)",
+  "travel.roadmap.guardian": "Check risks (non-refundable fares, stops)",
+  "travel.roadmap.handoff": "Prepare CHEAPEST / FASTEST / BEST_BALANCE and a Review & Pay link for you",
+  "travel.status.on_time": "Booking {booking_ref}: {airline} {flight_no} on {date} at {dep_time} is on time. Gate {gate}.",
+  "travel.status.delayed": "Booking {booking_ref}: {airline} {flight_no} on {date} is delayed by {delay} minutes. Gate {gate}.",
+  "travel.status.cancelled": "Booking {booking_ref}: {airline} {flight_no} on {date} is cancelled. Please open the booking to see options.",
+  "travel.status.not_found": "I could not find that booking on your account.",
+  "travel.status.ask_ref": "Please share your booking reference.",
+
+  "pulse.text": "Good morning {name}! Your settlement for {date_label} was {actual}{gap_part}. Pending refunds: {pending_refunds}. Open disputes: {open_disputes}. Soundbox battery: {battery}%.",
+  "pulse.gap_part": ", which is {gap} less than expected",
+  "pulse.no_settlement": "Good morning {name}! No settlement record yet. Soundbox battery: {battery}%.",
+
+  "advice.festival": "{festival} is {days} days away. Expect more customers: keep the Soundbox fully charged (now {battery}%) and keep change ready.",
+  "advice.no_festival": "No major festival in the next {days} days.",
+  "advice.battery_low": "Your Soundbox battery is {battery}%. Charge it before the evening rush.",
+  "advice.battery_ok": "Your Soundbox battery is {battery}%, which is fine.",
+
+  "voice.not_understood": "Sorry, I could not hear that clearly. Please say it again."
+}

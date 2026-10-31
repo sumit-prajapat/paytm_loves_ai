@@ -1,88 +1,48 @@
+"""Planner: merges slots, asks ONE missing question at a time, builds the visible roadmap."""
 import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import BaseAgent
-from app.schemas.envelope import AgentEnvelope
+from app.i18n import t
+from app.nlu.rules import CITY_TO_IATA
 
 
 class PlannerAgent(BaseAgent):
-    """Produces the visible multi-agent Roadmap card and identifies missing slots one at a time."""
-
     def __init__(self) -> None:
         super().__init__(name="planner")
 
-    async def process(
-        self,
-        case_id: str,
-        input_data: dict[str, Any],
-        db: AsyncSession,
-    ) -> AgentEnvelope:
-        start_time = time.time()
-        slots = input_data.get("slots", {})
-        language = input_data.get("language", "hi")
-
-        origin = slots.get("origin", "DEL")
-        destination = slots.get("destination", "BOM")
-        date_str = slots.get("date", "tomorrow")
-        window = slots.get("window", "evening")
-        preference = slots.get("preference", "sasta aur jaldi")
-
-        # Check for missing critical slots (Ask ONE at a time)
-        if not destination:
-            msg = "Aapko kahan jaana hai? (Destination city)" if language in ["hi", "hinglish"] else "Where would you like to travel to?"
-            return AgentEnvelope(
-                agent=self.name,
-                status="needs_input",
-                result={"missing_slot": "destination", "question": msg},
-                confidence=0.75,
-                evidence=["slot_checker"],
-                next="listener",
-                language=language,
-                latency_ms=(time.time() - start_time) * 1000.0,
-            )
-
-        # Build transparent Roadmap
-        roadmap = [
-            f"Step 1: Check direct non-stop flights from {origin} to {destination} for {date_str}",
-            f"Step 2: Filter by preferred '{window}' departure window",
-            "Step 3: Check 1-stop options if price gap exceeds 25%",
-            "Step 4: Check flexible dates (+1 day) for major fare drops",
-            f"Step 5: Score options deterministically (Price weight shifted for '{preference}')",
-            "Step 6: Prepare Top 3 labeled recommendations and hand over Review & Pay link to human",
-        ]
-
-        roadmap_card = {
-            "origin": origin,
-            "destination": destination,
-            "date": date_str,
-            "window": window,
-            "preference": preference,
-            "roadmap_steps": roadmap,
-        }
-
-        latency_ms = (time.time() - start_time) * 1000.0
-
-        await self.emit_step(
-            case_id=case_id,
-            tool="generate_travel_roadmap",
-            input_data={"slots": slots},
-            output_data={"steps_count": len(roadmap), "roadmap": roadmap},
-            confidence=0.98,
-            db=db,
-        )
-
-        return AgentEnvelope(
-            agent=self.name,
-            status="done",
-            result=roadmap_card,
-            confidence=0.98,
-            evidence=["roadmap_planner"],
-            next="search",
-            language=language,
-            latency_ms=latency_ms,
-        )
+    async def plan(self, case_id: str, slots: dict[str, Any], *, home_city: str | None, lang: str,
+                   db: AsyncSession) -> dict[str, Any]:
+        start = time.perf_counter()
+        slots = dict(slots)
+        notes = []
+        if "origin" not in slots and home_city and home_city.lower() in CITY_TO_IATA and "destination" in slots:
+            if CITY_TO_IATA[home_city.lower()] != slots["destination"]:
+                slots["origin"] = CITY_TO_IATA[home_city.lower()]
+                notes.append("origin_from_profile")
+        missing = next((s for s in ("destination", "origin", "date") if s not in slots), None)
+        roadmap: list[str] = []
+        question = None
+        if missing:
+            question = t(f"travel.ask_{missing}", lang)
+        else:
+            slots.setdefault("preference", "balanced")
+            roadmap = [
+                t("travel.roadmap.understand", lang, origin=slots["origin"], destination=slots["destination"],
+                  date=slots["date"]),
+                t("travel.roadmap.search", lang, date=slots["date"]),
+                *([t("travel.roadmap.filter", lang, window=slots["window"])] if slots.get("window") else []),
+                t("travel.roadmap.score", lang, preference=slots["preference"]),
+                t("travel.roadmap.guardian", lang),
+                t("travel.roadmap.handoff", lang),
+            ]
+        await self.emit_step(case_id=case_id, tool="generate_travel_roadmap", input_data={"slots": slots},
+                             output_data={"missing": missing, "roadmap": roadmap, "notes": notes},
+                             confidence=1.0 if not missing else 0.7, db=db,
+                             latency_ms=(time.perf_counter() - start) * 1000)
+        return {"slots": slots, "missing": missing, "question": question, "roadmap": roadmap, "notes": notes}
 
 
 planner_agent = PlannerAgent()

@@ -1,58 +1,61 @@
-import json
+"""Google Gemini adapter. Key goes in a header (never the URL, which may be logged)."""
 import logging
 from typing import Any
 
 import httpx
 
-from app.adapters.llm.base import BaseLLMAdapter
-from app.adapters.llm.mock import MockLLM
+from app.adapters.llm.base import BaseLLMAdapter, LLMUnavailable
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+
 
 class GeminiLLM(BaseLLMAdapter):
-    """Google Gemini LLM adapter with fallback to MockLLM on network/api error."""
+    provider = "gemini"
 
-    def __init__(self, api_key: str, model_name: str = "gemini-3.5-flash-lite") -> None:
-        self.api_key = api_key
-        self.model_name = model_name
-        self.mock_fallback = MockLLM()
-        self.endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    def __init__(self, api_key: str) -> None:
+        self._api_key = api_key
 
-    async def generate_response(
+    async def complete(
         self,
+        *,
+        system: str,
         prompt: str,
-        system_instruction: str | None = None,
+        tier: int,
+        json_mode: bool,
+        task: str,
         context: dict[str, Any] | None = None,
-        tools: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        s = get_settings()
+        model = s.GEMINI_MODEL_TIER2 if tier >= 2 else s.GEMINI_MODEL_TIER1
+        payload: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "systemInstruction": {"parts": [{"text": system}]},
+            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512},
+        }
+        if json_mode:
+            payload["generationConfig"]["responseMimeType"] = "application/json"
         try:
-            payload: dict[str, Any] = {
-                "contents": [
-                    {
-                        "role": "user",
-                        "parts": [{"text": prompt}],
-                    }
-                ],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "responseMimeType": "application/json",
-                },
-            }
-            if system_instruction:
-                payload["systemInstruction"] = {
-                    "parts": [{"text": system_instruction}]
-                }
-
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.post(self.endpoint, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    candidate_text = data["candidates"][0]["content"]["parts"][0]["text"]
-                    return json.loads(candidate_text)
-                else:
-                    logger.warning(f"Gemini API returned {res.status_code}. FALLBACK USED")
-                    return await self.mock_fallback.generate_response(prompt, system_instruction, context, tools)
-        except Exception as e:
-            logger.warning(f"Gemini API invocation error: {e}. FALLBACK USED")
-            return await self.mock_fallback.generate_response(prompt, system_instruction, context, tools)
+            async with httpx.AsyncClient(timeout=s.LLM_TIMEOUT_SECONDS) as client:
+                res = await client.post(
+                    f"{_BASE}/{model}:generateContent",
+                    json=payload,
+                    headers={"x-goog-api-key": self._api_key},
+                )
+        except httpx.HTTPError as exc:
+            raise LLMUnavailable(f"gemini network error: {type(exc).__name__}") from exc
+        if res.status_code != 200:
+            raise LLMUnavailable(f"gemini HTTP {res.status_code} for model {model}")
+        try:
+            data = res.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            usage = data.get("usageMetadata", {})
+        except (KeyError, IndexError, ValueError) as exc:
+            raise LLMUnavailable("gemini malformed response") from exc
+        return {
+            "text": text,
+            "input_tokens": int(usage.get("promptTokenCount", len(system + prompt) // 4)),
+            "output_tokens": int(usage.get("candidatesTokenCount", len(text) // 4)),
+        }

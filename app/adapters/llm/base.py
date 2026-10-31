@@ -2,14 +2,26 @@ import abc
 from typing import Any
 
 
+class LLMUnavailable(Exception):
+    """Raised when the provider fails (network, quota, bad model, malformed output).
+
+    Adapters never silently substitute another provider; the LLM gateway decides how to
+    degrade (templates, then human queue) and records it.
+    """
+
+
 class BaseLLMAdapter(abc.ABC):
+    provider: str = "base"
+
     @abc.abstractmethod
-    async def generate_response(
+    async def complete(
         self,
+        *,
+        system: str,
         prompt: str,
-        system_instruction: str | None = None,
+        tier: int,
+        json_mode: bool,
+        task: str,
         context: dict[str, Any] | None = None,
-        tools: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        """Generates reasoning or explanation with optional structured tool calls."""
-        pass
+        """Return {"text": str, "input_tokens": int, "output_tokens": int}."""
