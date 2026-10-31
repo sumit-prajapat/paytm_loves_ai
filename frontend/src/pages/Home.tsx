@@ -20,8 +20,11 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { BrandLogo, ConnectionPill, LanguageChip, ThemeToggle } from "@/components/layout";
+import { MerchantChat } from "@/components/panels/MerchantChat";
+import { SoundboxPanel } from "@/components/panels/SoundboxPanel";
+import { TravelChat } from "@/components/panels/TravelChat";
 import { Badge, Button, Card, SimulatedBadge } from "@/components/ui";
 import { api } from "@/lib/api";
 import { config } from "@/lib/config";
@@ -42,7 +45,6 @@ const DEMO_TILES = [
 ];
 
 export default function Home() {
-  const navigate = useNavigate();
   const lang = useStore((s) => s.lang);
   const apiStatus = useStore((s) => s.apiStatus);
   const storeMetrics = useStore((s) => s.metrics);
@@ -55,6 +57,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [bgFailed, setBgFailed] = useState(false);
+  const [heroTab, setHeroTab] = useState<"care" | "travel" | "soundbox">("care");
 
   // Fetch metrics on-demand upon component mount (no auto-polling loops!)
   useEffect(() => {
@@ -81,18 +84,6 @@ export default function Home() {
       active = false;
     };
   }, [setStore]);
-
-  const handleSettlementCta = async () => {
-    // Navigates directly to merchant chat and triggers settlement check
-    navigate("/merchant");
-    setTimeout(() => {
-      runCheckup("ramesh", "settlement");
-    }, 150);
-  };
-
-  const handleVoiceCta = () => {
-    navigate("/merchant");
-  };
 
   return (
     <div className="min-h-screen bg-bg text-ink transition-colors duration-200">
@@ -157,67 +148,115 @@ export default function Home() {
           <div className="absolute inset-0 bg-radial-gradient from-transparent via-navy-900/60 to-navy-900" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-28">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-semibold text-sky-300 backdrop-blur-sm mb-6">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Paytm ❤️ AI · Autonomous AI Teammates (Track 3)</span>
-          </div>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:py-14">
+          <div className="grid items-center gap-8 lg:grid-cols-12">
+            {/* Left Column: Minimal, Large Text & Voice-First for illiterate / vernacular merchants */}
+            <div className="lg:col-span-6 flex flex-col justify-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-semibold text-sky-300 backdrop-blur-sm mb-4 w-fit">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Paytm ❤️ AI · Autonomous AI Teammates</span>
+              </div>
 
-          <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-white leading-tight">
-            {t("landing.hero.title", lang)}
-          </h1>
+              <h1 className="text-3xl font-black tracking-tight sm:text-5xl text-white leading-tight">
+                {t("landing.hero.title", lang)}
+              </h1>
 
-          <p className="mt-5 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed">
-            {t("landing.hero.sub", lang)}
-          </p>
+              <p className="mt-3 text-base sm:text-lg text-slate-300 leading-snug">
+                {t("landing.hero.sub", lang)}
+              </p>
 
-          {/* Action CTAs */}
-          <div className="mt-8 flex flex-wrap items-center gap-3.5">
-            <Button
-              variant="sky"
-              size="lg"
-              onClick={handleSettlementCta}
-              className="font-bold text-navy-900 shadow-lg shadow-sky-500/20 hover:scale-[1.02] active:scale-95 transition"
-            >
-              💰 {t("landing.hero.cta.settlement", lang)}
-            </Button>
+              {/* Minimalist High-Visibility Voice & Action Controls */}
+              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeroTab("care");
+                    runCheckup("ramesh", "settlement");
+                  }}
+                  className="flex items-center justify-center gap-3 rounded-2xl bg-sky-500 px-6 py-4 text-base font-black text-navy-900 shadow-xl shadow-sky-500/25 hover:bg-sky-400 active:scale-95 transition"
+                >
+                  <span className="text-2xl">💰</span>
+                  <div className="text-left">
+                    <div className="text-sm font-black uppercase tracking-wider">{t("landing.hero.cta.settlement", lang)}</div>
+                    <div className="text-[11px] opacity-80">Check Today's Money · सीधा हिसाब</div>
+                  </div>
+                </button>
 
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handleVoiceCta}
-              className="border-white/30 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 active:scale-95 transition font-semibold"
-            >
-              <Mic className="h-5 w-5 text-sky-400" />
-              {t("landing.hero.cta.voice", lang)}
-            </Button>
+                <button
+                  type="button"
+                  onClick={() => setHeroTab("care")}
+                  className="flex items-center justify-center gap-3 rounded-2xl border-2 border-white/20 bg-white/10 px-6 py-4 text-base font-black text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition"
+                >
+                  <Mic className="h-6 w-6 text-sky-400" />
+                  <div className="text-left">
+                    <div className="text-sm font-black uppercase tracking-wider">{t("landing.hero.cta.voice", lang)}</div>
+                    <div className="text-[11px] text-slate-300">Bol kar poochiye · Speak Now</div>
+                  </div>
+                </button>
+              </div>
 
-            <Link
-              to="/travel"
-              className="inline-flex items-center gap-2 rounded-btn border border-white/20 bg-transparent px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
-            >
-              <Plane className="h-4 w-4 text-sky-300" />
-              <span>{t("landing.travel.cta", lang)}</span>
-            </Link>
-          </div>
+              {/* Quick Trust Guardrails */}
+              <div className="mt-6 flex flex-wrap items-center gap-2 pt-4 border-t border-white/10 text-xs text-slate-300">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  {t("landing.badge.humanApproval", lang)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/20 px-3 py-1 text-emerald-300 font-semibold">
+                  🔒 {t("landing.badge.onDemand", lang)}
+                </span>
+              </div>
+            </div>
 
-          {/* Trust Badges */}
-          <div className="mt-12 flex flex-wrap items-center gap-3 pt-6 border-t border-white/10 text-xs text-slate-300">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              {t("landing.badge.humanApproval", lang)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1">
-              <Layers className="h-4 w-4 text-sky-400" />
-              {t("landing.badge.auditLog", lang)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1">
-              <ShieldAlert className="h-4 w-4 text-amber-400" />
-              {t("landing.badge.killSwitch", lang)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/20 px-3 py-1 text-emerald-300 font-semibold">
-              🔒 {t("landing.badge.onDemand", lang)}
-            </span>
+            {/* Right Column: Prominent Live Chatbot Tabs (Saarthi Care, Travel, Soundbox) */}
+            <div className="lg:col-span-6 flex flex-col items-center">
+              <div className="w-full max-w-[420px] rounded-3xl border border-white/15 bg-navy-800/80 p-2 shadow-2xl backdrop-blur-xl">
+                {/* Tab switcher */}
+                <div className="flex rounded-2xl bg-navy-900/90 p-1 text-xs font-bold text-white mb-2 border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setHeroTab("care")}
+                    className={`flex-1 rounded-xl py-2.5 transition flex items-center justify-center gap-1.5 ${
+                      heroTab === "care" ? "bg-sky-500 text-navy-900 shadow font-extrabold" : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    <span>🏪</span> Saarthi Care
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHeroTab("travel")}
+                    className={`flex-1 rounded-xl py-2.5 transition flex items-center justify-center gap-1.5 ${
+                      heroTab === "travel" ? "bg-sky-500 text-navy-900 shadow font-extrabold" : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    <span>✈️</span> Travel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHeroTab("soundbox")}
+                    className={`flex-1 rounded-xl py-2.5 transition flex items-center justify-center gap-1.5 ${
+                      heroTab === "soundbox" ? "bg-sky-500 text-navy-900 shadow font-extrabold" : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    <span>🔊</span> Soundbox
+                  </button>
+                </div>
+
+                {/* Embedded Live Tab View */}
+                <div className="flex justify-center overflow-hidden rounded-2xl bg-slate-900/30">
+                  {heroTab === "care" && (
+                    <MerchantChat persona="ramesh" height={520} />
+                  )}
+                  {heroTab === "travel" && (
+                    <TravelChat persona="arjun" height={520} />
+                  )}
+                  {heroTab === "soundbox" && (
+                    <div className="p-3 w-full flex justify-center">
+                      <SoundboxPanel persona="ramesh" compact />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
