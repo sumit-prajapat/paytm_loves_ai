@@ -1,0 +1,83 @@
+import datetime
+import logging
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import get_settings
+from app.db.models import AuditLog
+from app.db.session import AsyncSessionLocal
+
+logger = logging.getLogger(__name__)
+
+
+class KillSwitchService:
+    """Manages the global kill switch that halts autonomous agent mutations."""
+
+    def __init__(self) -> None:
+        settings = get_settings()
+        self._is_active: bool = settings.KILL_SWITCH_ACTIVE
+        self._threshold_inr: float = settings.FINANCIAL_IMPACT_THRESHOLD_INR
+        self._auto_resolve_threshold: float = settings.AUTO_RESOLVE_CONFIDENCE_THRESHOLD
+        self._clarify_threshold: float = settings.CLARIFY_CONFIDENCE_THRESHOLD
+        self._last_updated: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+        self._updated_by: str | None = "system_init"
+        self._reason: str | None = "Initialized from config"
+
+    def is_active(self) -> bool:
+        return self._is_active
+
+    def get_state(self) -> dict:
+        return {
+            "kill_switch_active": self._is_active,
+            "financial_impact_threshold_inr": self._threshold_inr,
+            "auto_resolve_confidence_threshold": self._auto_resolve_threshold,
+            "clarify_confidence_threshold": self._clarify_threshold,
+            "last_updated": self._last_updated.isoformat(),
+            "reason": self._reason,
+            "updated_by": self._updated_by,
+        }
+
+    async def set_active(
+        self,
+        active: bool,
+        actor: str = "operator",
+        reason: str | None = None,
+        db: AsyncSession | None = None,
+    ) -> dict:
+        old_state = self._is_active
+        self._is_active = active
+        self._last_updated = datetime.datetime.now(datetime.timezone.utc)
+        self._updated_by = actor
+        self._reason = reason
+
+        action_name = "KILL_SWITCH_ENGAGED" if active else "KILL_SWITCH_DISENGAGED"
+        detail = {
+            "previous_state": old_state,
+            "new_state": active,
+            "reason": reason,
+        }
+
+        logger.warning(
+            f"Control state changed: {action_name} by {actor}. Reason: {reason}"
+        )
+
+        audit_entry = AuditLog(
+            case_id="system_control",
+            actor=actor,
+            action=action_name,
+            detail=detail,
+            ts=self._last_updated,
+        )
+
+        if db:
+            db.add(audit_entry)
+            await db.commit()
+        else:
+            async with AsyncSessionLocal() as session:
+                session.add(audit_entry)
+                await session.commit()
+
+        return self.get_state()
+
+
+kill_switch_service = KillSwitchService()

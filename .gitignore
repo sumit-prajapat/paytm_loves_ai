@@ -1,0 +1,42 @@
+# Python environment and bytecode
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Local SQLite databases & backups
+*.db
+*.sqlite3
+backups/
+
+# Audio temp files
+data/temp_audio/
+*.audio
+*.wav
+*.mp3
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Large raw datasets (kept locally, not committed)
+payslim transaction dataset/
+price_prediction_datatset/
+
+# Generated runtime data
+data/audio/
+.ruff_cache/

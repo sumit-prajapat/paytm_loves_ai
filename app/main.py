@@ -1,0 +1,176 @@
+import logging
+import uuid
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.api.adapter_health import router as adapter_health_router
+from app.api.audit import router as audit_router
+from app.api.auth import router as auth_router
+from app.api.chat import router as chat_router
+from app.api.control import router as control_router
+from app.api.devices import router as devices_router
+from app.api.disputes import router as disputes_router
+from app.api.escalations import router as escalations_router
+from app.api.events import router as events_router
+from app.api.health import router as health_router
+from app.api.loans import router as loans_router
+from app.api.merchants import router as merchants_router
+from app.api.metrics import router as metrics_router
+from app.api.notifications import router as notifications_router
+from app.api.playbooks import router as playbooks_router
+from app.api.pulse import router as pulse_router
+from app.api.refunds import router as refunds_router
+from app.api.settlements import router as settlements_router
+from app.api.tickets import router as tickets_router
+from app.api.transactions import router as transactions_router
+from app.api.travel import router as travel_router
+from app.api.voice import router as voice_router
+from app.api.ws import router as ws_router
+from app.config import get_settings
+from app.core.middleware import (
+    CorrelationIdMiddleware,
+    RateLimiterMiddleware,
+    SecurityHeadersMiddleware,
+)
+from app.db.session import init_db
+from app.events.scheduler import start_scheduler, stop_scheduler
+from app.logging import setup_logging
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Setup structured JSON logging
+    setup_logging(level="DEBUG" if settings.DEBUG else "INFO")
+    logger.info("Starting Saarthi backend server", extra={"demo_mode": settings.DEMO_MODE})
+
+    # Startup security verification in non-demo mode
+    if not settings.DEMO_MODE:
+        if "insecure" in settings.JWT_SECRET_KEY or len(settings.JWT_SECRET_KEY) < 32:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: Non-demo mode requires a strong JWT_SECRET_KEY (min 32 characters)."
+            )
+
+    # Initialize SQLite / PostgreSQL tables
+    await init_db()
+    logger.info("Database tables initialized successfully")
+
+    # Start background anomaly scheduler
+    start_scheduler()
+
+    yield
+
+    stop_scheduler()
+    logger.info("Shutting down Saarthi backend server")
+
+
+app = FastAPI(
+    title="Saarthi Backend - Multi-Agent AI Teammate for Bharat",
+    description="Autonomous AI Teammate backend powering Saarthi Care (Merchant Support) & Saarthi Travel (Consumer Concierge)",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if settings.DEMO_MODE else None,
+    redoc_url="/redoc" if settings.DEMO_MODE else None,
+)
+
+# 1. Custom Security Middlewares (Order: Correlation -> Security Headers -> Rate Limiter)
+app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+
+# 2. CORS Policy: Restricted in non-demo mode
+if settings.DEMO_MODE:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Correlation-ID", "X-Idempotency-Key"],
+    )
+
+
+# 3. Global Exception Handlers (Never leak stack traces, SQL, or internal file paths)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    corr_id = getattr(request.state, "correlation_id", f"corr_{uuid.uuid4().hex[:12]}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "code": f"HTTP_{exc.status_code}",
+            "message": exc.detail,
+            "correlation_id": corr_id,
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    corr_id = getattr(request.state, "correlation_id", f"corr_{uuid.uuid4().hex[:12]}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": True,
+            "code": "VALIDATION_ERROR",
+            "message": "Invalid request schema or parameters",
+            "correlation_id": corr_id,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    corr_id = getattr(request.state, "correlation_id", f"corr_{uuid.uuid4().hex[:12]}")
+    # Log internal error and full traceback server-side with correlation id
+    logger.error(f"Internal server error [corr_id={corr_id}]: {exc}", exc_info=True)
+    # Return redacted, sanitized error response to client
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": True,
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected server error occurred. Please contact support with this correlation ID.",
+            "correlation_id": corr_id,
+        },
+    )
+
+
+# 4. Register All Routers
+app.include_router(auth_router)
+app.include_router(health_router)
+app.include_router(adapter_health_router)
+app.include_router(control_router)
+app.include_router(merchants_router)
+app.include_router(transactions_router)
+app.include_router(settlements_router)
+app.include_router(refunds_router)
+app.include_router(devices_router)
+app.include_router(tickets_router)
+app.include_router(notifications_router)
+app.include_router(loans_router)
+app.include_router(disputes_router)
+app.include_router(playbooks_router)
+app.include_router(audit_router)
+app.include_router(travel_router)
+app.include_router(metrics_router)
+app.include_router(chat_router)
+app.include_router(voice_router)
+app.include_router(pulse_router)
+app.include_router(events_router)
+app.include_router(escalations_router)
+app.include_router(ws_router)
