@@ -30,7 +30,7 @@ async def test_control_state_and_kill_switch_toggle(
     auth_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # 1. Get initial control state
-    res = await client.get("/control/state", headers=auth_headers)
+    res = await client.get("/api/v1/control/state", headers=auth_headers)
     assert res.status_code == 200
     state = res.json()
     assert state["kill_switch_active"] is False
@@ -42,7 +42,7 @@ async def test_control_state_and_kill_switch_toggle(
         "reason": "Emergency halt triggered by safety supervisor",
         "actor": "admin_test",
     }
-    toggle_res = await client.post("/control/kill-switch", json=engage_payload, headers=auth_headers)
+    toggle_res = await client.post("/api/v1/control/kill-switch", json=engage_payload, headers=auth_headers)
     assert toggle_res.status_code == 200
     updated_state = toggle_res.json()
     assert updated_state["kill_switch_active"] is True
@@ -64,6 +64,6 @@ async def test_control_state_and_kill_switch_toggle(
         "reason": "Resuming normal operations",
         "actor": "admin_test",
     }
-    resume_res = await client.post("/control/kill-switch", json=disengage_payload, headers=auth_headers)
+    resume_res = await client.post("/api/v1/control/kill-switch", json=disengage_payload, headers=auth_headers)
     assert resume_res.status_code == 200
     assert resume_res.json()["kill_switch_active"] is False
